@@ -42,6 +42,7 @@ String prompt;
 String promptSuffix;
 String requestPrompt;  // should be less than 400 characters for Dall-E 2
 String saveFolder = "output";
+String[] promptList = new String[2];
 int imageCounter = 1;
 boolean saved = false;
 boolean start = false;
@@ -49,7 +50,7 @@ boolean ready = false;
 boolean animation = false;  // while waiting for openai to respond
 
 static final int ANIMATION_STEPS = 4;
-int animationCounter;
+int[] animationCounter = new int[2];
 String[] animationSequence = {"|", "/", "-", "\\"};
 int animationHeight = 96;
 static final int SHOW_SECONDS = 0;
@@ -190,7 +191,11 @@ void draw() {
         length = FILENAME_LENGTH;
       }
       String filename = prompt.substring(0, length).replaceAll(" ", "_");
-      img.save(saveFolder+File.separator+filename + "_"+ number(imageCounter)+".png");
+      String filenamePath = saveFolder+File.separator+filename + "_"+ number(imageCounter);
+      img.save(filenamePath + ".png");
+      promptList[0] = prompt;
+      promptList[1] = filenamePath + ".png";
+      saveStrings(filenamePath + ".txt", promptList);
       imageCounter++;
       saved = true;
     }
@@ -232,22 +237,22 @@ void doAnimation(boolean status, int select) {
     textSize(animationHeight);
     switch(select) {
     case 0:
-      int seconds = animationCounter/int(frameRate);
+      int seconds = animationCounter[select]/int(frameRate);
       String working0 = str(seconds) + " ... \u221e" ;  // infinity
       text(working0, imageSize/2- textWidth(working0)/2, height/2);
-      animationCounter++;
+      animationCounter[select]++;
       break;
     case 1:
-      String working1 = animationSequence[animationCounter]; // Symbol sequence
+      String working1 = animationSequence[animationCounter[select]]; // Symbol sequence
       text(working1, imageSize/2 - textWidth(working1)/2, height/2);
-      animationCounter++;
-      if (animationCounter >= ANIMATION_STEPS) animationCounter = 0;
+      animationCounter[select]++;
+      if (animationCounter[select] >= ANIMATION_STEPS) animationCounter[select] = 0;
       break;
     default:
       break;
     }
   } else {
-    animationCounter = 0;
+    animationCounter[select] = 0;
   }
 }
 
