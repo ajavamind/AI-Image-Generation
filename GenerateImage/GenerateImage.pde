@@ -7,7 +7,7 @@
  * https://github.com/TheoKanning/openai-java
  *
  * In order to use this implementation of openai-java with Processing,
- * I built the example with gradlew in debug mode.
+ * I built the example with gradlew in info mode.
  * From the example build folders I downloaded jar files found in the -cp classpath.
  * The jar files were copied into the "code" folder.
  *
@@ -35,6 +35,8 @@ CreateImageRequest request;
 
 String imageURL;
 PImage img;
+int imageSize = 1024;
+
 String promptPrefix;
 String prompt;
 String promptSuffix;
@@ -44,6 +46,15 @@ int imageCounter = 1;
 boolean saved = false;
 boolean start = false;
 boolean ready = false;
+boolean animation = false;  // while waiting for openai to respond
+
+static final int ANIMATION_STEPS = 4;
+int animationCounter;
+String[] animationSequence = {"|", "/", "-", "\\"};
+int animationHeight = 96;
+static final int SHOW_SECONDS = 0;
+static final int SHOW_SYMBOLS = 1;
+
 int statusHeight;
 int promptHeight;
 int errorMessageHeight;
@@ -62,10 +73,10 @@ void setup() {
   size(1920, 1080);
   background(128);
   fontHeight = 18;
-  textSize(fontHeight);
+
   surface.setTitle("Generate Images With DALL-E2");
   // request focus on window so user does not have to press mouse key on window to get focus
-  String RENDERER = JAVA2D; // default for size() 
+  String RENDERER = JAVA2D; // default for size()
   try {
     if (RENDERER.equals(P2D)) {
       ((com.jogamp.newt.opengl.GLWindow) surface.getNative()).requestFocus();  // for P2D
@@ -88,7 +99,7 @@ void setup() {
     testUrl = "sunflowers_blue_vase.png";
     testImg = loadImage(testUrl);
   }
-  
+
   // create the OPENAI API service
   // OPENAI_TOKEN is your paid account token stored in the environment variables for Windows 10/11
   String token = System.getenv("OPENAI_TOKEN");
@@ -108,6 +119,8 @@ void setup() {
 
 void draw() {
   background(128);
+  textSize(fontHeight);
+
   // check for key or mouse input
   boolean update = updateKey();
   if (update) {
@@ -141,7 +154,7 @@ void draw() {
 
     imageURL = "";
     ready = false;
-
+    animation = true;
     // start thread to create Image and wait for response from OpenAI in background
     if (DEBUG_GUI) {
       println("debug createImage");
@@ -168,12 +181,13 @@ void draw() {
 
   // check for valid image before display and save
   if (img != null && img.width>0 && img.height>0) {
+    animation = false;
     image(img, 0, 0, img.width, img.height);
     if (!saved) {
       println("save image");
       int length = prompt.length();
       if (length > FILENAME_LENGTH) {
-         length = FILENAME_LENGTH;
+        length = FILENAME_LENGTH;
       }
       String filename = prompt.substring(0, length).replaceAll(" ", "_");
       img.save(saveFolder+File.separator+filename + "_"+ number(imageCounter)+".png");
@@ -183,6 +197,9 @@ void draw() {
     fill(0);
     text(requestPrompt, width/128, statusHeight);
   }
+
+  doAnimation(animation, SHOW_SECONDS);
+  //doAnimation(animation, SHOW_SYMBOLS);
 
   if (errorText != null) {
     fill(color(255, 0, 0));
@@ -200,6 +217,37 @@ void createImage() {
     errorText = "Service problem "+ rex;
     println("Service problem "+ rex);
     lastKeyCode = KEYCODE_ERROR;
+    animation = false;
+  }
+}
+
+/**
+* Perform animation while waiting for OpenAI
+* status true for animation on
+* select type of animation
+*/
+void doAnimation(boolean status, int select) {
+  if (status) {
+    fill(color(0, 0, 255));
+    textSize(animationHeight);
+    switch(select) {
+    case 0:
+      int seconds = animationCounter/int(frameRate);
+      String working0 = str(seconds) + " ... \u221e" ;  // infinity
+      text(working0, imageSize/2- textWidth(working0)/2, height/2);
+      animationCounter++;
+      break;
+    case 1:
+      String working1 = animationSequence[animationCounter]; // Symbol sequence
+      text(working1, imageSize/2 - textWidth(working1)/2, height/2);
+      animationCounter++;
+      if (animationCounter >= ANIMATION_STEPS) animationCounter = 0;
+      break;
+    default:
+      break;
+    }
+  } else {
+    animationCounter = 0;
   }
 }
 
