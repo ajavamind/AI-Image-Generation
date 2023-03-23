@@ -190,8 +190,20 @@ void draw() {
       if (length > FILENAME_LENGTH) {
         length = FILENAME_LENGTH;
       }
-      String filename = prompt.substring(0, length).replaceAll(" ", "_");
+      StringBuilder temp = new StringBuilder(prompt.substring(0, length));
+      for (int i=0; i<temp.length(); i++) {
+        char c = temp.charAt(i);
+        //if (c == ' ' || c == ',' || c == '\"') {
+        //  temp.setCharAt(i, '_');
+        //}
+        if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))) {
+          temp.setCharAt(i, '_');
+        }
+      }
+      String filename = temp.toString();
+      println("filename="+filename);
       String filenamePath = saveFolder+File.separator+filename + "_"+ number(imageCounter);
+      println("filenamePath="+filenamePath);
       img.save(filenamePath + ".png");
       promptList[0] = prompt;
       promptList[1] = filenamePath + ".png";

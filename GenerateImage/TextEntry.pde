@@ -83,10 +83,10 @@ static final int KEYCODE_ERROR = 10000;
 //}
 
 void keyPressed() {
-  println("key="+ key + " keyCode="+keyCode);
+  println("key="+ key + " key10=" + int(key) + " keyCode="+keyCode);
   if (lastKeyCode == KEYCODE_ERROR) {
     return;
-    } else if (keyCode >= KEYCODE_COMMA && keyCode <= KEYCODE_RIGHT_BRACKET
+  } else if (keyCode >= KEYCODE_COMMA && keyCode <= KEYCODE_RIGHT_BRACKET
     || key == ' ' || keyCode == KEYCODE_QUOTE ) {
     lastKey = key;
     lastKeyCode = KEYCODE_KEYBOARD; // these keys for prompt text entry
@@ -168,13 +168,42 @@ void deleteNext() {
 void deletePrevious() {
   if (promptEntry.length() > 0) {
     promptIndex--;
-    if (promptIndex < 0){ 
+    if (promptIndex < 0) {
       promptIndex++;
     } else {
       promptEntry.deleteCharAt(promptIndex);
     }
   }
 }
+
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
+
+void test() {
+// copy text to the clipboard in Java:
+  StringSelection stringSelection = new StringSelection("Text to copy to clipboard");
+  Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+  clipboard.setContents(stringSelection, null);
+
+  //To paste text from the clipboard
+
+  clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+  Transferable contents = clipboard.getContents(null);
+  if (contents != null && contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+    String text="";
+    try {
+    text = (String) contents.getTransferData(DataFlavor.stringFlavor);
+    } catch (Exception ufe) {
+      text = "";
+    }
+    System.out.println(text);
+  }
+}
+
 
 //-------------------------------------------------------------------
 
@@ -184,10 +213,10 @@ public class TextEntry {
   int x, y; // top left corner of keyboard entry area
   int w, h; // width and height of keyboard entry area
   int inset; // space between left border to start of text
-  
-  color backgnd = color(128,128,128);
-  color fillText = color(255,255,255);
-  
+
+  color backgnd = color(128, 128, 128);
+  color fillText = color(255, 255, 255);
+
   public TextEntry(int x, int y, int w, int h) {
     this.x = x;
     this.y = y;
@@ -195,12 +224,11 @@ public class TextEntry {
     this.h = h;
     inset = w/128;
   }
-  
+
   public void clear() {
-      noStroke();
-      fill(backgnd);
-      rect(x, y, w, h);
-      fill(fillText);
+    noStroke();
+    fill(backgnd);
+    rect(x, y, w, h);
+    fill(fillText);
   }
-  
 }
