@@ -66,11 +66,23 @@ static final int KEYCODE_LEFT_BRACKET = 91;
 static final int KEYCODE_BACK_SLASH = 92;
 static final int KEYCODE_RIGHT_BRACKET = 93;
 
+static final int KEYCODE_F1 = 112;
+static final int KEYCODE_F2 = 113;
+static final int KEYCODE_F3 = 114;
+static final int KEYCODE_F4 = 115;
+static final int KEYCODE_F5 = 116;
+static final int KEYCODE_F6 = 117;
+static final int KEYCODE_F7 = 118;
+static final int KEYCODE_F8 = 119;
+static final int KEYCODE_F9 = 120;
+static final int KEYCODE_F10 = 121;
+
 static final int KEYCODE_DEL = 127;
 static final int KEYCODE_QUOTE = 222;
 
 static final int KEYCODE_KEYBOARD = 1000;
 static final int KEYCODE_ERROR = 10000;
+static final int KEY_CONTROL = 65535;
 
 //-------------------------------------------------------------------------------------
 
@@ -80,6 +92,17 @@ static final int KEYCODE_ERROR = 10000;
 //    return;
 //  }
 //  lastKeyCode = KEYCODE_ENTER;
+//}
+
+//void mousePressed() {
+//  if (!edit) {
+//    String[] sketchName = {"EditImage"};
+//    if (editImageSketch == null) {
+//      editImageSketch = new EditImage();
+//      runSketch(sketchName, editImageSketch);
+//      edit = true;
+//    }
+//  }
 //}
 
 void keyPressed() {
@@ -116,6 +139,34 @@ boolean updateKey() {
       ready = false;
       saved = false;
       start = true;
+    }
+    break;
+  case KEYCODE_F1:
+    createType = GENERATE_IMAGE;
+    break;
+  case KEYCODE_F2:
+    createType = EDIT_IMAGE;
+    if (receivedImage != null) {
+      if (!edit) {
+        String[] sketchName = {"EditImage"};
+        if (editImageSketch == null) {
+          editImageSketch = new EditImage();
+          runSketch(sketchName, editImageSketch);
+          editImageSketch.init(receivedImage, saveFolderPath);
+          edit = true;
+        }
+      }
+      //transparentImage = makeTransparent(receivedImage);
+      //transparentImage.save(sketchPath() + File.separator + saveFolder + File.separator + "transparentImage_RGBA.png");
+    }
+    break;
+  case KEYCODE_F3:
+    createType = VARIATION_IMAGE;
+    break;
+  case KEYCODE_TAB:
+    if (receivedImage != null) {
+      transparentImage = resizeTransparent(receivedImage, 0.5);
+      transparentImage.save(sketchPath() + File.separator + saveFolder + File.separator + "transparentImage_0.50.png");
     }
     break;
   case KEYCODE_KEYBOARD:
@@ -184,7 +235,7 @@ import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 
 void test() {
-// copy text to the clipboard in Java:
+  // copy text to the clipboard in Java:
   StringSelection stringSelection = new StringSelection("Text to copy to clipboard");
   Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
   clipboard.setContents(stringSelection, null);
@@ -196,8 +247,9 @@ void test() {
   if (contents != null && contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
     String text="";
     try {
-    text = (String) contents.getTransferData(DataFlavor.stringFlavor);
-    } catch (Exception ufe) {
+      text = (String) contents.getTransferData(DataFlavor.stringFlavor);
+    }
+    catch (Exception ufe) {
       text = "";
     }
     System.out.println(text);
