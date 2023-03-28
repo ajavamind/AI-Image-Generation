@@ -142,32 +142,24 @@ boolean updateKey() {
     }
     break;
   case KEYCODE_F1:
+    println("Key enter GENERATE IMAGE mode");
     createType = GENERATE_IMAGE;
     break;
   case KEYCODE_F2:
     createType = EDIT_IMAGE;
-    if (receivedImage != null) {
-      if (!edit) {
-        String[] sketchName = {"EditImage"};
-        if (editImageSketch == null) {
-          editImageSketch = new EditImage();
-          runSketch(sketchName, editImageSketch);
-          editImageSketch.init(receivedImage, saveFolderPath);
-          edit = true;
-        }
-      }
-      //transparentImage = makeTransparent(receivedImage);
-      //transparentImage.save(sketchPath() + File.separator + saveFolder + File.separator + "transparentImage_RGBA.png");
-    }
+    println("Key enter EDIT IMAGE mode");
+    editNewImage();
     break;
   case KEYCODE_F3:
+    println("Key enter EDIT MASK IMAGE mode");
+    createType = EDIT_MASK_IMAGE;
+    editNewImage();
+    break;
+  case KEYCODE_F4:
+    println("Key enter VARIATION  IMAGE mode");
     createType = VARIATION_IMAGE;
     break;
   case KEYCODE_TAB:
-    if (receivedImage != null) {
-      transparentImage = resizeTransparent(receivedImage, 0.5);
-      transparentImage.save(sketchPath() + File.separator + saveFolder + File.separator + "transparentImage_0.50.png");
-    }
     break;
   case KEYCODE_KEYBOARD:
     addKey(char(lastKey));
@@ -205,82 +197,98 @@ boolean updateKey() {
   return status;
 }
 
-void addKey(char aKey) {
-  promptEntry.insert(promptIndex, aKey);
-  promptIndex++;
-}
-
-void deleteNext() {
-  if (promptIndex < promptEntry.length()) {
-    promptEntry.deleteCharAt(promptIndex);
+void editNewImage() {
+  if (receivedImage != null) {
+    if (!edit) {
+      String[] sketchName = {"EditImage"};
+      if (editImageSketch == null) {
+        editImageSketch = new EditImage();
+        runSketch(sketchName, editImageSketch);
+        editImageSketch.init(receivedImage, saveFolderPath);
+        edit = true;
+      }
+    } else {
+      editImageSketch.init(receivedImage, saveFolderPath);
+    }
   }
 }
+  
+  void addKey(char aKey) {
+    promptEntry.insert(promptIndex, aKey);
+    promptIndex++;
+  }
 
-void deletePrevious() {
-  if (promptEntry.length() > 0) {
-    promptIndex--;
-    if (promptIndex < 0) {
-      promptIndex++;
-    } else {
+  void deleteNext() {
+    if (promptIndex < promptEntry.length()) {
       promptEntry.deleteCharAt(promptIndex);
     }
   }
-}
 
-import java.awt.Toolkit;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.StringSelection;
-import java.awt.datatransfer.Transferable;
-import java.awt.datatransfer.UnsupportedFlavorException;
-
-void test() {
-  // copy text to the clipboard in Java:
-  StringSelection stringSelection = new StringSelection("Text to copy to clipboard");
-  Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-  clipboard.setContents(stringSelection, null);
-
-  //To paste text from the clipboard
-
-  clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-  Transferable contents = clipboard.getContents(null);
-  if (contents != null && contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
-    String text="";
-    try {
-      text = (String) contents.getTransferData(DataFlavor.stringFlavor);
+  void deletePrevious() {
+    if (promptEntry.length() > 0) {
+      promptIndex--;
+      if (promptIndex < 0) {
+        promptIndex++;
+      } else {
+        promptEntry.deleteCharAt(promptIndex);
+      }
     }
-    catch (Exception ufe) {
-      text = "";
+  }
+
+  import java.awt.Toolkit;
+  import java.awt.datatransfer.Clipboard;
+  import java.awt.datatransfer.DataFlavor;
+  import java.awt.datatransfer.StringSelection;
+  import java.awt.datatransfer.Transferable;
+  import java.awt.datatransfer.UnsupportedFlavorException;
+
+  void test() {
+    // copy text to the clipboard in Java:
+    StringSelection stringSelection = new StringSelection("Text to copy to clipboard");
+    Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+    clipboard.setContents(stringSelection, null);
+
+    //To paste text from the clipboard
+
+    clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+    Transferable contents = clipboard.getContents(null);
+    if (contents != null && contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+      String text="";
+      try {
+        text = (String) contents.getTransferData(DataFlavor.stringFlavor);
+      }
+      catch (Exception ufe) {
+        text = "";
+      }
+      System.out.println(text);
     }
-    System.out.println(text);
-  }
-}
-
-
-//-------------------------------------------------------------------
-
-// Work in progress
-
-public class TextEntry {
-  int x, y; // top left corner of keyboard entry area
-  int w, h; // width and height of keyboard entry area
-  int inset; // space between left border to start of text
-
-  color backgnd = color(128, 128, 128);
-  color fillText = color(255, 255, 255);
-
-  public TextEntry(int x, int y, int w, int h) {
-    this.x = x;
-    this.y = y;
-    this.w = w;
-    this.h = h;
-    inset = w/128;
   }
 
-  public void clear() {
-    noStroke();
-    fill(backgnd);
-    rect(x, y, w, h);
-    fill(fillText);
+
+  //-------------------------------------------------------------------
+
+  // Work in progress
+
+  public class TextEntry {
+    int x, y; // top left corner of keyboard entry area
+    int w, h; // width and height of keyboard entry area
+    int inset; // space between left border to start of text
+
+    color backgnd = color(128, 128, 128);
+    color fillText = color(255, 255, 255);
+
+    public TextEntry(int x, int y, int w, int h) {
+      this.x = x;
+      this.y = y;
+      this.w = w;
+      this.h = h;
+      inset = w/128;
+    }
+
+    public void clear() {
+      noStroke();
+      fill(backgnd);
+      rect(x, y, w, h);
+      fill(fillText);
+    }
   }
-}

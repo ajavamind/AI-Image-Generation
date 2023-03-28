@@ -27,8 +27,9 @@ import com.theokanning.openai.image.CreateImageRequest;
 import com.theokanning.openai.*;
 import java.time.Duration;
 
-//private static final boolean DEBUG_GUI = false;
-private static final boolean DEBUG_GUI = true;
+private static final boolean DEBUG_GUI = false;
+//private static final boolean DEBUG_GUI = true;
+private static final boolean DEBUG = true;  // Log println on Processing SDK console
 private static final Duration IMAGE_TIMEOUT = Duration.ofSeconds(120);
 
 OpenAiService service;
@@ -65,7 +66,8 @@ boolean edit = false;
 
 private static final int GENERATE_IMAGE = 0;
 private static final int EDIT_IMAGE = 1;
-private static final int VARIATION_IMAGE = 2;
+private static final int EDIT_MASK_IMAGE = 2;
+private static final int VARIATION_IMAGE = 3;
 int createType = GENERATE_IMAGE;
 
 boolean animation = false;  // show animation while waiting for openai to respond
@@ -100,7 +102,8 @@ void setup() {
   background(128);
   fontHeight = 18;
   frameRate(appFrameRate);
-  surface.setTitle("Generate Images With DALL-E2");
+  setTitle("Generate Images With OpenAI DALL-E2 API");
+  
   // request focus on window so user does not have to press mouse key on window to get focus
   try {
     if (RENDERER.equals(P2D)) {
@@ -118,7 +121,7 @@ void setup() {
   errorMessageHeight = height/2 -2*fontHeight;  // center screeen
   statusHeight = height-3*fontHeight-4;  // above prompt area
 
-  // prompt area can display 3 lines
+  // prompt text area can display 3 lines
   // only one line used
   promptHeight = height-2*fontHeight-4; // top line
   //promptHeight = height-1*fontHeight-4; // middle line
@@ -149,6 +152,7 @@ void setup() {
   // set start flag to begin generation in the draw() animation loop
   start = false;
   
+  openFileSystem();
 }
 
 void draw() {
@@ -182,7 +186,7 @@ void draw() {
     else requestPrompt = promptPrefix + " "+ prompt;
     if (!promptSuffix.equals("")) requestPrompt +=  " " + promptSuffix;
 
-    if (createType == EDIT_IMAGE) {
+    if (createType == EDIT_IMAGE || createType == EDIT_MASK_IMAGE) {
       println("\nEdit Image with prompt: " + prompt);
       editRequest = CreateImageEditRequest.builder()
         .prompt(requestPrompt)
@@ -218,11 +222,15 @@ void draw() {
       if (createType == EDIT_IMAGE) {
         editImagePath = sketchPath() + File.separator + promptList[2];
         editMaskPath = sketchPath() + File.separator + saveFolder + File.separator + promptList[1]+"_RGBA.png";
-        thread("createImageEdit");
+        thread("createImageEdit"); // execute createImageEdit() method in a separate thread
+      } else if (createType == EDIT_MASK_IMAGE) {
+        editImagePath = sketchPath() + File.separator + saveFolder + File.separator + promptList[1]+"_RGBA.png";
+        editMaskPath = null;
+        thread("createImageEdit");  // execute createImageEdit() method in a separate thread
       } else if (createType == GENERATE_IMAGE) {
-        thread("createImage");  // execute createImage() method in a separate thread
+        thread("createImage");  // execute createImage method in a separate thread
       } else if (createType == VARIATION_IMAGE) {
-        thread("createImageVariation");
+        thread("createImageVariation"); // execute createImageVariation method in a separate thread
       }
     }
 
@@ -262,9 +270,9 @@ void draw() {
         }
       }
       filename = temp.toString()  + "_"+ number(imageCounter);
-      println("filename="+filename);
+      println("save image filename="+filename);
       filenamePath = saveFolder+File.separator+filename;
-      println("filenamePath="+filenamePath);
+      println("save image filenamePath="+filenamePath);
       receivedImage.save(filenamePath + ".png");
       promptList[0] = prompt;
       promptList[1] = filename;
@@ -291,6 +299,7 @@ void draw() {
 
 // createImage called in a background thread
 void createImage() {
+  println("createImage()");
   try {
     ready = true;
     imageURL = service.createImage(request).getData().get(0).getUrl();
@@ -305,6 +314,9 @@ void createImage() {
 
 // createImageEdit called in a background thread
 void createImageEdit() {
+  println("createImageEdit()");
+  println("editImagePath="+editImagePath);
+  println("editMaskPath="+editMaskPath);
   try {
     transparentImage = null;  // prevent display since we have editImagePath and new image will replace
     ready = true;
@@ -320,6 +332,7 @@ void createImageEdit() {
 
 // createImageVariation called in a background thread
 void createImageVariation() {
+  println("createImageVariation()");
   try {
     ready = true;
     imageURL = service.createImageVariation(variationRequest, editImagePath).getData().get(0).getUrl();

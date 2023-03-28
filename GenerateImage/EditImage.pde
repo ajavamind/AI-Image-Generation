@@ -3,6 +3,7 @@ import processing.core.PApplet;
 public class EditImage extends PApplet {
 
   PImage baseImage;
+  PImage zoomImage;
   PImage maskImage;
   PGraphics workImage;
   PImage editImage;
@@ -19,7 +20,7 @@ public class EditImage extends PApplet {
 
   void init(PImage img, String outputFolder) {
     brushWidth = 32;
-    println("init ");
+    println("Edit Imageinit ");
     baseImage = img.copy();
     println("copy ");
     editImage = makeTransparent(baseImage);
@@ -30,12 +31,13 @@ public class EditImage extends PApplet {
   }
 
   void stop() {
+    editReady = false;
     baseImage = null;
   }
 
   void draw() {
     if (!editReady) {
-      text("Initialize", width/2, height/2);
+      text("Waiting for Image to edit.", width/2, height/2);
       return;
     }
     int mx = mouseX;
@@ -59,7 +61,7 @@ public class EditImage extends PApplet {
     image(maskImage, 0, 0);
     fill(255);
     noStroke();
-    circle(mx, my, brushWidth);
+    circle(mx, my, brushWidth); // show brush at mouse coordinates
     updateEditKey();
   }
 
@@ -81,6 +83,14 @@ public class EditImage extends PApplet {
     case KEYCODE_LEFT_BRACKET:
       brushWidth -= 4;
       if (brushWidth <= 4) brushWidth = 4;
+      break;
+    case KEYCODE_PLUS: // zoom in
+      //transparentImage = resizeTransparent(receivedImage, 0.5);
+      //transparentImage.save(sketchPath() + File.separator + saveFolder + File.separator + "transparentImage_0.50.png");
+      break;
+    case KEYCODE_MINUS: // zoom out
+      //transparentImage = resizeTransparent(receivedImage, 0.5);
+      //transparentImage.save(sketchPath() + File.separator + saveFolder + File.separator + "transparentImage_0.50.png");
       break;
     default:
       break;
