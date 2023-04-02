@@ -1,4 +1,4 @@
-// Text Entry GUI
+// Text Entry 
 
 static final int KEYCODE_NOP = 0;
 static final int KEYCODE_BACK = 4;
@@ -86,27 +86,8 @@ static final int KEY_CONTROL = 65535;
 
 //-------------------------------------------------------------------------------------
 
-// mouse Click to request another image generation using the same prompt
-//void mouseClicked() {
-//  if (lastKeyCode == KEYCODE_ERROR) {
-//    return;
-//  }
-//  lastKeyCode = KEYCODE_ENTER;
-//}
-
-//void mousePressed() {
-//  if (!edit) {
-//    String[] sketchName = {"EditImage"};
-//    if (editImageSketch == null) {
-//      editImageSketch = new EditImage();
-//      runSketch(sketchName, editImageSketch);
-//      edit = true;
-//    }
-//  }
-//}
-
 void keyPressed() {
-  println("key="+ key + " key10=" + int(key) + " keyCode="+keyCode);
+  //println("key="+ key + " key10=" + int(key) + " keyCode="+keyCode);
   if (lastKeyCode == KEYCODE_ERROR) {
     return;
   } else if (keyCode >= KEYCODE_COMMA && keyCode <= KEYCODE_RIGHT_BRACKET
@@ -140,6 +121,10 @@ boolean updateKey() {
       saved = false;
       start = true;
     }
+    println("promptList: ");
+    for (int i=0; i<promptList.length; i++) {
+      println(promptList[i]);
+    }
     break;
   case KEYCODE_F1:
     println("Key enter GENERATE IMAGE mode");
@@ -148,16 +133,28 @@ boolean updateKey() {
   case KEYCODE_F2:
     createType = EDIT_IMAGE;
     println("Key enter EDIT IMAGE mode");
-    editNewImage();
+    editNewImage(receivedImage, maskImage, false);
     break;
   case KEYCODE_F3:
-    println("Key enter EDIT MASK IMAGE mode");
+    println("EDIT embedded MASK IMAGE mode");
     createType = EDIT_MASK_IMAGE;
-    editNewImage();
+    editNewImage(receivedImage, maskImage, true);
     break;
   case KEYCODE_F4:
     println("Key enter VARIATION  IMAGE mode");
     createType = VARIATION_IMAGE;
+    break;
+  case KEYCODE_F5:
+    println("Select Output Folder");
+    selectOutputFolder();
+    break;
+  case KEYCODE_F9:
+    println("Select Image File");
+    selectInputImage();
+    break;
+  case KEYCODE_F10:
+    println("Select Image Mask File");
+    selectMaskImage();
     break;
   case KEYCODE_TAB:
     break;
@@ -197,18 +194,18 @@ boolean updateKey() {
   return status;
 }
 
-void editNewImage() {
-  if (receivedImage != null) {
+void editNewImage(PImage inputImage, PImage maskImage, boolean embed) {
+  if (inputImage != null) {
     if (!edit) {
       String[] sketchName = {"EditImage"};
       if (editImageSketch == null) {
-        editImageSketch = new EditImage();
+        editImageSketch = new EditMaskImage();
         runSketch(sketchName, editImageSketch);
-        editImageSketch.init(receivedImage, saveFolderPath);
+        editImageSketch.init(inputImage, maskImage, embed);
         edit = true;
       }
     } else {
-      editImageSketch.init(receivedImage, saveFolderPath);
+      editImageSketch.init(inputImage, maskImage, embed);
     }
   }
 }

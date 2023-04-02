@@ -7,7 +7,7 @@
  * https://github.com/TheoKanning/openai-java
  *
  * In order to use this implementation of openai-java with Processing,
- * I built the example with gradlew in info mode.
+ * I built a modified example from openai-java with gradlew in info mode.
  * From the example build folders I downloaded jar files found in the -cp classpath.
  * The jar files were copied into the "code" folder.
  *
@@ -16,9 +16,11 @@
  
  * Keyboard Operation:
  * ESC key exit program
- * Enter key sends prompt text request to DALL-E2 service of OpenAI
+ * Enter key sends text prompt request to DALL-E2 service of OpenAI
  *
- * Image files received are saved in output folder with text prompt name
+ *  OPENAI_TOKEN is your paid account token stored in the environment variables for Windows 10/11
+ *
+ * Image files received are saved in a default output folder with text prompt for filename
  */
 
 import com.theokanning.openai.service.OpenAiService;
@@ -30,33 +32,38 @@ import java.time.Duration;
 private static final boolean DEBUG_GUI = false;
 //private static final boolean DEBUG_GUI = true;
 private static final boolean DEBUG = true;  // Log println on Processing SDK console
-private static final Duration IMAGE_TIMEOUT = Duration.ofSeconds(120);
+private static final Duration IMAGE_TIMEOUT = Duration.ofSeconds(120); // seconds
 
 OpenAiService service;
 CreateImageRequest request;
 CreateImageEditRequest editRequest;
 CreateImageVariationRequest variationRequest;
 
-String imageURL;
 PImage receivedImage;
-PImage previousImage;
-PImage transparentImage;  //
+PImage maskImage;  // mask
+String imageURL;
+
 String editImagePath = null;
 String editMaskPath = null;
 String filename;
 String filenamePath;
 
-int numImages = 1;
-int imageSize = 1024;  // square default
+int numImages = 1; // number of images requested from openai service
+int imageSize = 1024;  // square default working size and aspect ratio
 String genImageSize = "1024x1024";
+// note image type is png
 
 String promptPrefix;
 String prompt;
 String promptSuffix;
 String requestPrompt;  // should be less than 400 characters for Dall-E 2
-String saveFolder = "output";
-String saveFolderPath;
+String saveFolder = "output"; // default output folder location relative to sketch path
+String saveFolderPath; // full path to save folder
+
 String[] promptList = new String[3];
+//promptList[0] = prompt;
+//promptList[1] = filename;
+//promptList[2] = filenamePath + ".png";
 
 int imageCounter = 1;
 boolean saved = false;
@@ -68,10 +75,10 @@ private static final int GENERATE_IMAGE = 0;
 private static final int EDIT_IMAGE = 1;
 private static final int EDIT_MASK_IMAGE = 2;
 private static final int VARIATION_IMAGE = 3;
-int createType = GENERATE_IMAGE;
+int createType = GENERATE_IMAGE; // type of image creation request
 
-boolean animation = false;  // show animation while waiting for openai to respond
-
+// animation section
+boolean animation = false;  // flag to control animation while waiting for openai to respond
 static final int ANIMATION_STEPS = 4;
 int[] animationCounter = new int[2];
 String[] animationSequence = {"|", "/", "-", "\\"};
@@ -89,22 +96,27 @@ int promptIndex;
 static final int FILENAME_LENGTH = 60;
 PImage testImage;
 String testUrl;
-float appFrameRate = 30;
+float appFrameRate = 30; // draw frames per second
 
+// store for key presses when it is time for draw() to process input key commands
 volatile int lastKey;
 volatile int lastKeyCode;
 
 String RENDERER = JAVA2D; // default for setup size()
-EditImage editImageSketch;
+EditMaskImage editImageSketch; // mask image editor
 
+/**
+ * sketch setup
+ */
 void setup() {
   size(1920, 1080);
-  background(128);
+  background(128);   // light gray
   fontHeight = 18;
   frameRate(appFrameRate);
   setTitle("Generate Images With OpenAI DALL-E2 API");
-  
+
   // request focus on window so user does not have to press mouse key on window to get focus
+  // a quirk fix for processing sketches in Java on Windows
   try {
     if (RENDERER.equals(P2D)) {
       ((com.jogamp.newt.opengl.GLWindow) surface.getNative()).requestFocus();  // for P2D
@@ -134,8 +146,8 @@ void setup() {
     testImage = loadImage(testUrl);
   }
 
-  saveFolderPath = sketchPath() + File.separator + saveFolder;
-  
+  saveFolderPath = sketchPath() + File.separator + saveFolder; // default on start
+
   // create the OPENAI API service
   // OPENAI_TOKEN is your paid account token stored in the environment variables for Windows 10/11
   String token = System.getenv("OPENAI_TOKEN");
@@ -151,20 +163,25 @@ void setup() {
 
   // set start flag to begin generation in the draw() animation loop
   start = false;
-  
+
   openFileSystem();
 }
 
+/**
+ * Main sketch draw loop
+ */
 void draw() {
   background(128);
   textSize(fontHeight);
 
-  // check for key or mouse input
+  // check for key or mouse input and process on this draw thread
   boolean update = updateKey();
   if (update) {
     prompt = promptEntry.toString();
-    println("prompt "+prompt.length()+" ="+prompt);
+    //println("prompt "+prompt.length()+" ="+prompt);
   }
+
+  // show prompt text on display
   noStroke();
   fill(128);
   rect(0, height - statusHeight, width, statusHeight);
@@ -176,16 +193,18 @@ void draw() {
   }
   text("|", width/128 + offset-2, promptHeight); // cursor
 
+  // check is prompt length is minimum size
   if (start && prompt.length() > 3) {
     start = false;
     saved = false;
     receivedImage = null;
 
-    // build the request prompt string
+    // build the request prompt string from prompt prefix and suffix
     if (promptPrefix.equals("")) requestPrompt = prompt;
     else requestPrompt = promptPrefix + " "+ prompt;
     if (!promptSuffix.equals("")) requestPrompt +=  " " + promptSuffix;
 
+    // build the request to OpenAI with the prompt depending on createType
     if (createType == EDIT_IMAGE || createType == EDIT_MASK_IMAGE) {
       println("\nEdit Image with prompt: " + prompt);
       editRequest = CreateImageEditRequest.builder()
@@ -212,26 +231,26 @@ void draw() {
 
     imageURL = "";
     ready = false;
-    animation = true;
-    // start thread to create Image and wait for response from OpenAI in background
-    if (DEBUG_GUI) {
-      println("debug createImage");
-      imageURL = testUrl;
-      ready = true;
-    } else {
+    animation = true; // allow animatins while waiting for OpenAI response to request
+    
+    // start thread to create Image and wait for response from OpenAI
+    if (!DEBUG_GUI) {
       if (createType == EDIT_IMAGE) {
-        editImagePath = sketchPath() + File.separator + promptList[2];
-        editMaskPath = sketchPath() + File.separator + saveFolder + File.separator + promptList[1]+"_RGBA.png";
+        editMaskPath = editImageSketch.saveMask(saveFolderPath + File.separator + promptList[1]+"_RGBA.png", false);
         thread("createImageEdit"); // execute createImageEdit() method in a separate thread
       } else if (createType == EDIT_MASK_IMAGE) {
-        editImagePath = sketchPath() + File.separator + saveFolder + File.separator + promptList[1]+"_RGBA.png";
-        editMaskPath = null;
+        editImagePath = editImageSketch.saveMask(saveFolderPath + File.separator + promptList[1]+"_RGBA.png", true);
+        editMaskPath = null;  // ignore because mask was embedded in original image editImagePath
         thread("createImageEdit");  // execute createImageEdit() method in a separate thread
       } else if (createType == GENERATE_IMAGE) {
         thread("createImage");  // execute createImage method in a separate thread
       } else if (createType == VARIATION_IMAGE) {
         thread("createImageVariation"); // execute createImageVariation method in a separate thread
       }
+    } else { // DEBUG_GUI
+      println("debug createImage");
+      imageURL = testUrl;
+      ready = true;
     }
 
     // display status on screen
@@ -242,19 +261,17 @@ void draw() {
   // check if image is ready
   if (ready && !imageURL.equals("")) {
     println("\nImage is located at:");
-    println(imageURL);
     // get the image in a background thread
     ready = false;
     println("requestImage="+imageURL);
     receivedImage = requestImage(imageURL);
   }
 
-  // check for valid image before display and save
+  // check for valid image received before display and save
   if (receivedImage != null && receivedImage.width>0 && receivedImage.height>0) {
     animation = false;
     image(receivedImage, 0, 0, receivedImage.width, receivedImage.height);
     if (!saved) {
-      println("save image");
       int length = prompt.length();
       if (length > FILENAME_LENGTH) {
         length = FILENAME_LENGTH;
@@ -262,40 +279,39 @@ void draw() {
       StringBuilder temp = new StringBuilder(prompt.substring(0, length));
       for (int i=0; i<temp.length(); i++) {
         char c = temp.charAt(i);
-        //if (c == ' ' || c == ',' || c == '\"') {
-        //  temp.setCharAt(i, '_');
-        //}
         if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))) {
           temp.setCharAt(i, '_');
         }
       }
       filename = temp.toString()  + "_"+ number(imageCounter);
       println("save image filename="+filename);
-      filenamePath = saveFolder+File.separator+filename;
-      println("save image filenamePath="+filenamePath);
+      filenamePath = saveFolderPath+File.separator+filename;
+      println("save received image filenamePath="+filenamePath+ ".png");
       receivedImage.save(filenamePath + ".png");
       promptList[0] = prompt;
       promptList[1] = filename;
       promptList[2] = filenamePath + ".png";
+      editImagePath = promptList[2];
       saveStrings(filenamePath + ".txt", promptList);
       imageCounter++;
       saved = true;
     }
-    if (transparentImage != null) {
-      image(transparentImage, 0, 0, transparentImage.width, transparentImage.height);
-    }
     fill(0);
-    text(requestPrompt, width/128, statusHeight);
+    if (requestPrompt != null) text(requestPrompt, width/128, statusHeight);
   }
 
-  doAnimation(animation, SHOW_SECONDS);
-  //doAnimation(animation, SHOW_SYMBOLS);
+  doAnimation(animation, SHOW_SECONDS);  // elapsed time animation
+  //doAnimation(animation, SHOW_SYMBOLS); // spinner
 
+  // show any errors from the request
   if (errorText != null) {
     fill(color(255, 0, 0));
     text(errorText, width/128, errorMessageHeight);
   }
 }
+
+//---------------------------------------------------------------------------
+// creation image threads
 
 // createImage called in a background thread
 void createImage() {
@@ -318,7 +334,6 @@ void createImageEdit() {
   println("editImagePath="+editImagePath);
   println("editMaskPath="+editMaskPath);
   try {
-    transparentImage = null;  // prevent display since we have editImagePath and new image will replace
     ready = true;
     imageURL = service.createImageEdit(editRequest, editImagePath, editMaskPath).getData().get(0).getUrl();
   }
@@ -345,6 +360,8 @@ void createImageVariation() {
   }
 }
 
+//--------------------------------------------------------------------
+// 
 /**
  * Convert PImage to a transparent PImage
  * PImage img Input image
@@ -363,58 +380,32 @@ PImage makeTransparent(PImage img) {
 }
 
 /**
- * Resize transparent PImage to a transparent PImage
- * assumes square aspect ratio
- * zoomFactor if greater than 1.0, the image is cropped along sides
- *     if less than 1.0, the image is shrunk
- * PImage img Input transparent image
- * returns PImage resized
- */
-PImage resizeTransparent(PImage img, float zoomFactor) {
-  PImage result;
-  PGraphics pg;
-
-  pg = createGraphics(img.width, img.height);
-  pg.beginDraw();
-  float w = img.width*zoomFactor;
-  float h = img.height*zoomFactor;
-  float x = (img.width - w) / 2;
-  float y = (img.height -h) / 2;
-  pg.background(color(128, 128, 128, 0)); // transparent gray background
-  pg.image(img, x, y, w, h);
-  pg.endDraw();
-  result = pg;
-  return result;
-}
-
-
-/**
  * Perform animation while waiting for OpenAI
  * status true for animation on
  * select type of animation
  */
-void doAnimation(boolean status, int select) {
+void doAnimation(boolean status, int selectAnimation) {
   if (status) {
     fill(color(0, 0, 255));
     textSize(animationHeight);
-    switch(select) {
+    switch(selectAnimation) {
     case 0:
-      int seconds = animationCounter[select]/int(appFrameRate);
+      int seconds = animationCounter[selectAnimation]/int(appFrameRate);
       String working0 = str(seconds) + " ... \u221e" ;  // infinity
       text(working0, imageSize/2- textWidth(working0)/2, height/2);
-      animationCounter[select]++;
+      animationCounter[selectAnimation]++;
       break;
     case 1:
-      String working1 = animationSequence[animationCounter[select]]; // Symbol sequence
+      String working1 = animationSequence[animationCounter[selectAnimation]]; // Symbol sequence
       text(working1, imageSize/2 - textWidth(working1)/2, height/2);
-      animationCounter[select]++;
-      if (animationCounter[select] >= ANIMATION_STEPS) animationCounter[select] = 0;
+      animationCounter[selectAnimation]++;
+      if (animationCounter[selectAnimation] >= ANIMATION_STEPS) animationCounter[selectAnimation] = 0;
       break;
     default:
       break;
     }
   } else {
-    animationCounter[select] = 0;
+    animationCounter[selectAnimation] = 0;
   }
 }
 
@@ -427,10 +418,10 @@ String number(int index) {
   //  if (index == 0)
   //    return "";
   if (index < 10)
-  return ("000" + String.valueOf(index));
+    return ("000" + String.valueOf(index));
   else if (index < 100)
-  return ("00" + String.valueOf(index));
+    return ("00" + String.valueOf(index));
   else if (index < 1000)
-  return ("0" + String.valueOf(index));
+    return ("0" + String.valueOf(index));
   return String.valueOf(index);
 }

@@ -1,5 +1,6 @@
 // Java or Android platform build
-// Code differences
+// Accounts for code differences between Android and Java sketch builds
+// Android mode not working in progress
 //
 
 private final static int JAVA_MODE = 0;
@@ -145,17 +146,18 @@ void setTitle(String str) {
   surface.setTitle(str);
 }
 
-void selectConfigurationFile() {
-  if (DEBUG) println("Select Configuration File ");
-  selectInput("Select Configuration File:", "fileSelected");
+void selectInputImage() {
+  if (DEBUG) println("Select Input Image File ");
+  selectInput("Select Input Image File:", "selectImageFile");
 }
 
-void selectPhotoFolder() {
-  if (saveFolderPath == null) {
-    selectFolder("Select Photo Folder", "folderSelected");
-  } else {
-    if (DEBUG) println("Saving photo");
-  }
+void selectMaskImage() {
+  if (DEBUG) println("Select Mask Image File ");
+  selectInput("Select Mask Image File:", "selectMaskImageFile");
+}
+
+void selectOutputFolder() {
+    selectFolder("Select Output Folder", "selectOutputFolder");
 }
 
 void saveConfig(String config) {
@@ -187,22 +189,37 @@ int loadPhotoNumber() {
 // Code common to Android and Java platforms
 // do not comment out
 
-void folderSelected(File selection) {
+void selectOutputFolder(File selection) {
   if (selection == null) {
     if (DEBUG) println("Window closed or canceled.");
-    //gui.displayMessage("Canceled", 30);
   } else {
-    if (DEBUG) println("User selected " + selection.getAbsolutePath());
+    if (DEBUG) println("User selected Output Folder: " + selection.getAbsolutePath());
     saveFolderPath = selection.getAbsolutePath();
   }
 }
 
-void fileSelected(File selection) {
+void selectImageFile(File selection) {
+  if (selection == null) {
+    println("Selection window was closed or the user hit cancel.");
+    //showMsg("Selection window was closed or canceled.");
+  } else {
+    println("User selected " + selection.getAbsolutePath());
+    editImagePath = selection.getAbsolutePath();
+    promptList[1] = editImagePath.substring(editImagePath.lastIndexOf(File.separator)+1);
+    saved = true;
+    println("selectImageFile: "+promptList[1]);
+    println(editImagePath);
+    receivedImage = loadImage(editImagePath);
+  }
+}
+
+void selectMaskImageFile(File selection) {
   if (selection == null) {
     if (DEBUG) println("Selection window was closed or the user hit cancel.");
     //showMsg("Selection window was closed or canceled.");
   } else {
     if (DEBUG) println("User selected " + selection.getAbsolutePath());
-    //configFilename = selection.getAbsolutePath();
+    editMaskPath = selection.getAbsolutePath();
+    maskImage = loadImage(editMaskPath);
   }
 }
