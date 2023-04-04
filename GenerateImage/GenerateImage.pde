@@ -1,6 +1,6 @@
 /**
  *
- * Generate AI images from a text prompt using OpenAI Dall-E 2 API
+ * Generate AI images from a text prompt using OpenAI Dall-E2 API
  * written by Andy Modla, copyright 2023
  *
  * Sketch calls OpenAI-Java API from a Github implementation found at
@@ -39,19 +39,21 @@ CreateImageRequest request;
 CreateImageEditRequest editRequest;
 CreateImageVariationRequest variationRequest;
 
-PImage receivedImage;
+private static final int NUM = 4; // maximum number of images to request
+int numImages = NUM; // number of images requested from openai service
+int imageSize = 1024;  // square default working size and aspect ratio
+String genImageSize = "1024x1024";
+// note image type is always png
+
+PImage[] receivedImage; // images downloaded from ImageResult following a request
+int current = 0;  // index for receivedImage main display
 PImage maskImage;  // mask
-String imageURL;
+String[] imageURL;  // image URL from result data response
 
 String editImagePath = null;
 String editMaskPath = null;
 String filename;
 String filenamePath;
-
-int numImages = 1; // number of images requested from openai service
-int imageSize = 1024;  // square default working size and aspect ratio
-String genImageSize = "1024x1024";
-// note image type is png
 
 String promptPrefix;
 String prompt;
@@ -66,15 +68,20 @@ String[] promptList = new String[3];
 //promptList[2] = filenamePath + ".png";
 
 int imageCounter = 1;
-boolean saved = false;
+boolean[] saved;
 boolean start = false;
 boolean ready = false;
 boolean edit = false;
 
+private static final String MODE = "Mode: ";
 private static final int GENERATE_IMAGE = 0;
 private static final int EDIT_IMAGE = 1;
 private static final int EDIT_MASK_IMAGE = 2;
 private static final int VARIATION_IMAGE = 3;
+private static final String GENERATE_IMAGE_DESC = "Generate Image";
+private static final String EDIT_IMAGE_DESC = "Edit Image With Mask";
+private static final String EDIT_MASK_IMAGE_DESC = "Edit Image With Embedded Mask";
+private static final String VARIATION_IMAGE_DESC = "Generate Variation";
 int createType = GENERATE_IMAGE; // type of image creation request
 
 // animation section
@@ -113,7 +120,7 @@ void setup() {
   background(128);   // light gray
   fontHeight = 18;
   frameRate(appFrameRate);
-  setTitle("Generate Images With OpenAI DALL-E2 API");
+  setTitle(TITLE);
 
   // request focus on window so user does not have to press mouse key on window to get focus
   // a quirk fix for processing sketches in Java on Windows
@@ -161,18 +168,23 @@ void setup() {
   // change prefix and suffix as needed, final prompt is concatenation of
   // promptPrefix + prompt + promptSuffix
 
+  receivedImage = new PImage[NUM];
+  imageURL = new String[NUM];
+  saved = new boolean[NUM];
+  for (int i=0; i<numImages; i++) saved[i] = false;
+  current = 0;
+
   // set start flag to begin generation in the draw() animation loop
   start = false;
 
   openFileSystem();
-}
+} // setup
 
 /**
  * Main sketch draw loop
  */
 void draw() {
-  background(128);
-  textSize(fontHeight);
+  background(128);  // light gray
 
   // check for key or mouse input and process on this draw thread
   boolean update = updateKey();
@@ -182,6 +194,7 @@ void draw() {
   }
 
   // show prompt text on display
+  textSize(fontHeight);
   noStroke();
   fill(128);
   rect(0, height - statusHeight, width, statusHeight);
@@ -196,8 +209,10 @@ void draw() {
   // check is prompt length is minimum size
   if (start && prompt.length() > 3) {
     start = false;
-    saved = false;
-    receivedImage = null;
+    for (int i=0; i<numImages; i++) saved[i] = false;
+    for (int i=0; i<numImages; i++) {
+      receivedImage[i] = null;
+    }
 
     // build the request prompt string from prompt prefix and suffix
     if (promptPrefix.equals("")) requestPrompt = prompt;
@@ -228,88 +243,164 @@ void draw() {
         .responseFormat("url")
         .build();
     }
-
-    imageURL = "";
+    for (int i=0; i<numImages; i++) {
+      imageURL[i] = "";
+    }
     ready = false;
     animation = true; // allow animatins while waiting for OpenAI response to request
-    
-    // start thread to create Image and wait for response from OpenAI
+
+    // start thread to create Image and wait for response from OpenAI DallE2
     if (!DEBUG_GUI) {
-      if (createType == EDIT_IMAGE) {
+      switch(createType) {
+      case GENERATE_IMAGE:
+        thread("createImage");  // execute createImage method in a separate thread
+        break;
+      case EDIT_IMAGE:
         editMaskPath = editImageSketch.saveMask(saveFolderPath + File.separator + promptList[1]+"_RGBA.png", false);
         thread("createImageEdit"); // execute createImageEdit() method in a separate thread
-      } else if (createType == EDIT_MASK_IMAGE) {
+        break;
+      case EDIT_MASK_IMAGE:
         editImagePath = editImageSketch.saveMask(saveFolderPath + File.separator + promptList[1]+"_RGBA.png", true);
         editMaskPath = null;  // ignore because mask was embedded in original image editImagePath
         thread("createImageEdit");  // execute createImageEdit() method in a separate thread
-      } else if (createType == GENERATE_IMAGE) {
-        thread("createImage");  // execute createImage method in a separate thread
-      } else if (createType == VARIATION_IMAGE) {
+        break;
+      case VARIATION_IMAGE:
         thread("createImageVariation"); // execute createImageVariation method in a separate thread
-      }
+        break;
+      default:
+        break;
+      };
     } else { // DEBUG_GUI
       println("debug createImage");
-      imageURL = testUrl;
+      for (int i=0; i<numImages; i++) {
+        imageURL[i] = testUrl;
+      }
       ready = true;
     }
 
     // display status on screen
-    fill(color(255, 0, 0));
+    fill(color(255, 0, 255));
     text("Sending Generate Image.", width/8, statusHeight);
   }
 
   // check if image is ready
-  if (ready && !imageURL.equals("")) {
+  if (ready && !imageURL[0].equals("")) {
     println("\nImage is located at:");
     // get the image in a background thread
     ready = false;
-    println("requestImage="+imageURL);
-    receivedImage = requestImage(imageURL);
+    current = 0;
+    for (int i=0; i<numImages; i++) {
+      println("requestImage["+i+"]="+imageURL[i]);
+      receivedImage[i] = requestImage(imageURL[i]);
+    }
+  }
+
+  // check for valid image received before save
+  for (int j=0; j<numImages; j++) {
+    if (receivedImage[j] != null && receivedImage[j].width>0 && receivedImage[j].height>0) {
+      if (!saved[j]) {
+        int length = prompt.length();
+        if (length > FILENAME_LENGTH) {
+          length = FILENAME_LENGTH;
+        }
+        StringBuilder temp = new StringBuilder(prompt.substring(0, length));
+        for (int i=0; i<temp.length(); i++) {
+          char c = temp.charAt(i);
+          if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))) {
+            temp.setCharAt(i, '_');
+          }
+        }
+        filename = temp.toString()  + "_"+ number(imageCounter);
+        println("save image filename="+filename);
+        filenamePath = saveFolderPath+File.separator+filename;
+        println("save received image filenamePath="+filenamePath+ ".png");
+        receivedImage[j].save(filenamePath + ".png");
+        promptList[0] = prompt;
+        promptList[1] = filename;
+        promptList[2] = filenamePath + ".png";
+        editImagePath = promptList[2];
+        saveStrings(filenamePath + ".txt", promptList);
+        imageCounter++;
+        saved[j] = true;
+      }
+    }
   }
 
   // check for valid image received before display and save
-  if (receivedImage != null && receivedImage.width>0 && receivedImage.height>0) {
+  if (receivedImage[current] != null && receivedImage[current].width>0 && receivedImage[current].height>0) {
     animation = false;
-    image(receivedImage, 0, 0, receivedImage.width, receivedImage.height);
-    if (!saved) {
-      int length = prompt.length();
-      if (length > FILENAME_LENGTH) {
-        length = FILENAME_LENGTH;
-      }
-      StringBuilder temp = new StringBuilder(prompt.substring(0, length));
-      for (int i=0; i<temp.length(); i++) {
-        char c = temp.charAt(i);
-        if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))) {
-          temp.setCharAt(i, '_');
-        }
-      }
-      filename = temp.toString()  + "_"+ number(imageCounter);
-      println("save image filename="+filename);
-      filenamePath = saveFolderPath+File.separator+filename;
-      println("save received image filenamePath="+filenamePath+ ".png");
-      receivedImage.save(filenamePath + ".png");
-      promptList[0] = prompt;
-      promptList[1] = filename;
-      promptList[2] = filenamePath + ".png";
-      editImagePath = promptList[2];
-      saveStrings(filenamePath + ".txt", promptList);
-      imageCounter++;
-      saved = true;
-    }
+    image(receivedImage[current], 0, 0, receivedImage[current].width, receivedImage[current].height);
     fill(0);
     if (requestPrompt != null) text(requestPrompt, width/128, statusHeight);
+  } else {
+    showIntroductionScreen();
+  }
+
+  // display all images received as large thumbnails
+  // check for valid image received before display
+  for (int i=0; i<numImages; i++) {
+    if (receivedImage[i] != null && receivedImage[i].width>0 && receivedImage[i].height>0) {
+      // temporary code, TO DO make layout flexible
+      image(receivedImage[i], 1024 + (i%2)*448, 128+(i/2)*448, 448, 448);
+      if (DEBUG) {
+        textSize(4*fontHeight);
+        //text(str(i), 1024+224 + (i%2)*448, 128+224+(i/2)*448);
+      }
+    }
   }
 
   doAnimation(animation, SHOW_SECONDS);  // elapsed time animation
   //doAnimation(animation, SHOW_SYMBOLS); // spinner
 
+  // Show mode in information section
+  fill(192);
+  rect(1024, 0, 896, 128);
+
+  fill(color(255, 0, 255));
+  textSize(2*fontHeight);
+  int x = 1024+10;
+  int y = fontHeight+10;
+  switch(createType) {
+  case GENERATE_IMAGE:
+    text(MODE+GENERATE_IMAGE_DESC, x, y);
+    break;
+  case EDIT_IMAGE:
+    text(MODE+EDIT_IMAGE_DESC, x, y);
+    break;
+  case EDIT_MASK_IMAGE:
+    text(MODE+EDIT_MASK_IMAGE_DESC, x, y);
+    break;
+  case VARIATION_IMAGE:
+    text(MODE+VARIATION_IMAGE_DESC, x, y);
+    break;
+  default:
+    text("Generate Image Mode Internal Error", x, y);
+    break;
+  };
+
   // show any errors from the request
-  if (errorText != null) {
-    fill(color(255, 0, 0));
-    text(errorText, width/128, errorMessageHeight);
+  showError(errorText);
+} // draw
+
+void showError(String str) {
+  if (str != null) {
+    fill(color(255, 128, 0));
+    textSize(2*fontHeight);
+    int leng = str.length();
+    int i = 0;
+    int k = 1;
+    while (i<leng) {
+      if ((leng -i)<80) {
+        text(str.substring(i), width/128, k*2*fontHeight+errorMessageHeight);
+        break;
+      } else {
+        text(str.substring(i, i+80), width/128, k*2*fontHeight+errorMessageHeight);
+      }
+      i+= 80;
+      k++;
+    }
   }
 }
-
 //---------------------------------------------------------------------------
 // creation image threads
 
@@ -318,7 +409,10 @@ void createImage() {
   println("createImage()");
   try {
     ready = true;
-    imageURL = service.createImage(request).getData().get(0).getUrl();
+    ImageResult result = service.createImage(request);
+    for (int i=0; i<numImages; i++) {
+      imageURL[i] = result.getData().get(i).getUrl();
+    }
   }
   catch (Exception rex) {
     errorText = "Service problem "+ rex;
@@ -335,7 +429,10 @@ void createImageEdit() {
   println("editMaskPath="+editMaskPath);
   try {
     ready = true;
-    imageURL = service.createImageEdit(editRequest, editImagePath, editMaskPath).getData().get(0).getUrl();
+    ImageResult result = service.createImageEdit(editRequest, editImagePath, editMaskPath);
+    for (int i=0; i<numImages; i++) {
+      imageURL[i] = result.getData().get(i).getUrl();
+    }
   }
   catch (Exception rex) {
     errorText = "Service problem "+ rex;
@@ -350,7 +447,10 @@ void createImageVariation() {
   println("createImageVariation()");
   try {
     ready = true;
-    imageURL = service.createImageVariation(variationRequest, editImagePath).getData().get(0).getUrl();
+    ImageResult result = service.createImageVariation(variationRequest, editImagePath);
+    for (int i=0; i<numImages; i++) {
+      imageURL[i] = result.getData().get(i).getUrl();
+    }
   }
   catch (Exception rex) {
     errorText = "Service problem "+ rex;
@@ -361,7 +461,7 @@ void createImageVariation() {
 }
 
 //--------------------------------------------------------------------
-// 
+//
 /**
  * Convert PImage to a transparent PImage
  * PImage img Input image
@@ -407,6 +507,38 @@ void doAnimation(boolean status, int selectAnimation) {
   } else {
     animationCounter[selectAnimation] = 0;
   }
+}
+
+static final String VERSION_NAME = "1.0";
+static final String VERSION_CODE = "1";
+static final String TITLE = "Generate Images With OpenAI DALL-E2 API";
+static final String SUBTITLE = "";
+static final String CREDITS = "Written by Andy Modla";
+static final String COPYRIGHT = "Copyright 2023 Andrew Modla";
+static String VERSION = "Version "+VERSION_NAME +" Number "+VERSION_CODE;
+
+void showIntroductionScreen() {
+  //println("Introduction Screen");
+  int introTextSize = 24;
+  int vstart = 60;
+  int voffset = vstart + introTextSize;
+  int hstart = 10;
+  int hoffset = hstart;
+
+  textAlign(LEFT);
+  textSize(introTextSize);
+  fill(color(255, 128, 128));
+
+  text(TITLE, hoffset, voffset);
+  voffset += introTextSize;
+  text(SUBTITLE, hoffset, voffset);
+  voffset += introTextSize;
+  text(VERSION, hoffset, voffset);
+  voffset += introTextSize;
+  text(CREDITS, hoffset, voffset);
+  voffset += introTextSize;
+  text(COPYRIGHT, hoffset, voffset);
+  voffset += introTextSize;
 }
 
 //------------------------------------------------------------------------------------

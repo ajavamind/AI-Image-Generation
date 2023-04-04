@@ -1,10 +1,14 @@
-// Text Entry 
+// Text Entry
 
 static final int KEYCODE_NOP = 0;
 static final int KEYCODE_BACK = 4;
 static final int KEYCODE_BACKSPACE = 8;
 static final int KEYCODE_TAB = 9;
 static final int KEYCODE_ENTER = 10;
+
+static final int KEY_CTRL_C = 3;
+static final int KEY_CTRL_V = 22;
+static final int KEY_CTRL_Z = 26;
 
 static final int KEYCODE_ESC = 27;
 
@@ -87,7 +91,7 @@ static final int KEY_CONTROL = 65535;
 //-------------------------------------------------------------------------------------
 
 void keyPressed() {
-  //println("key="+ key + " key10=" + int(key) + " keyCode="+keyCode);
+  println("key="+ key + " key10=" + int(key) + " keyCode="+keyCode);
   if (lastKeyCode == KEYCODE_ERROR) {
     return;
   } else if (keyCode >= KEYCODE_COMMA && keyCode <= KEYCODE_RIGHT_BRACKET
@@ -108,9 +112,34 @@ void keyPressed() {
 boolean updateKey() {
   //println("lastKey="+ lastKey + " lastKeyCode="+lastKeyCode);
   boolean status = false;
+  
+  // control keys
+  switch(lastKey) {
+    case KEY_CTRL_V:
+      pasteClipboard();
+      status = true;
+      lastKey = 0;
+      lastKeyCode = 0;
+      return status;
+    case KEY_CTRL_C:
+      copyText();
+      status = true;
+      lastKey = 0;
+      lastKeyCode = 0;
+      return status;
+    case KEY_CTRL_Z:
+      // TODO
+      status = true;
+      lastKey = 0;
+      lastKeyCode = 0;
+      return status;
+  }
+  
   switch(lastKeyCode) {
   case KEYCODE_ERROR:
-    imageURL = "";
+    for (int i=0; i<numImages; i++) {
+      imageURL[i] = "";
+    }
     ready = false;
     start = false;
     break;
@@ -118,7 +147,7 @@ boolean updateKey() {
     if (!start) {
       errorText = null;
       ready = false;
-      saved = false;
+      for (int i=0; i<numImages; i++) saved[i] = false;
       start = true;
     }
     println("promptList: ");
@@ -127,21 +156,21 @@ boolean updateKey() {
     }
     break;
   case KEYCODE_F1:
-    println("Key enter GENERATE IMAGE mode");
+    println("GENERATE IMAGE mode");
     createType = GENERATE_IMAGE;
     break;
   case KEYCODE_F2:
     createType = EDIT_IMAGE;
-    println("Key enter EDIT IMAGE mode");
-    editNewImage(receivedImage, maskImage, false);
+    println("EDIT IMAGE mode");
+    editNewImage(receivedImage[current], maskImage, false);
     break;
   case KEYCODE_F3:
     println("EDIT embedded MASK IMAGE mode");
     createType = EDIT_MASK_IMAGE;
-    editNewImage(receivedImage, maskImage, true);
+    editNewImage(receivedImage[current], maskImage, true);
     break;
   case KEYCODE_F4:
-    println("Key enter VARIATION  IMAGE mode");
+    println("VARIATION  IMAGE mode");
     createType = VARIATION_IMAGE;
     break;
   case KEYCODE_F5:
@@ -157,6 +186,8 @@ boolean updateKey() {
     selectMaskImage();
     break;
   case KEYCODE_TAB:
+    current++;
+    if (current == numImages) current = 0;
     break;
   case KEYCODE_KEYBOARD:
     addKey(char(lastKey));
@@ -209,83 +240,99 @@ void editNewImage(PImage inputImage, PImage maskImage, boolean embed) {
     }
   }
 }
-  
-  void addKey(char aKey) {
-    promptEntry.insert(promptIndex, aKey);
-    promptIndex++;
-  }
 
-  void deleteNext() {
-    if (promptIndex < promptEntry.length()) {
+void addKey(char aKey) {
+  promptEntry.insert(promptIndex, aKey);
+  promptIndex++;
+}
+
+void addString(String str) {
+  promptEntry.insert(promptIndex, str);
+  promptIndex += str.length();
+}
+
+void undoString(String str) {  // TODO
+  //promptEntry.insert(promptIndex, str);
+  // promptIndex -= str.length();
+}
+
+void deleteNext() {
+  if (promptIndex < promptEntry.length()) {
+    promptEntry.deleteCharAt(promptIndex);
+  }
+}
+
+void deletePrevious() {
+  if (promptEntry.length() > 0) {
+    promptIndex--;
+    if (promptIndex < 0) {
+      promptIndex++;
+    } else {
       promptEntry.deleteCharAt(promptIndex);
     }
   }
+}
 
-  void deletePrevious() {
-    if (promptEntry.length() > 0) {
-      promptIndex--;
-      if (promptIndex < 0) {
-        promptIndex++;
-      } else {
-        promptEntry.deleteCharAt(promptIndex);
-      }
+//-------------------------------------------------------------------------------------
+
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
+
+// copy text to the clipboard in Java:
+void copyText() {
+  StringSelection stringSelection = new StringSelection(prompt);
+  Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+  clipboard.setContents(stringSelection, null);
+}
+
+// paste text from the clipboard
+void pasteClipboard() {
+  Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+  Transferable contents = clipboard.getContents(null);
+  if (contents != null && contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+    String text="";
+    try {
+      text = (String) contents.getTransferData(DataFlavor.stringFlavor);
+      text = text.replaceAll("\n", "   ");
     }
+    catch (Exception ufe) {
+      text = "";
+    }
+    println("paste clipboard "+ text);
+    addString(text);
+  }
+}
+
+
+
+//-------------------------------------------------------------------
+
+// Work in progress
+
+public class TextEntry {
+  int x, y; // top left corner of keyboard entry area
+  int w, h; // width and height of keyboard entry area
+  int inset; // space between left border to start of text
+
+  color backgnd = color(128, 128, 128);
+  color fillText = color(255, 255, 255);
+
+  public TextEntry(int x, int y, int w, int h) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    inset = w/128;
   }
 
-  import java.awt.Toolkit;
-  import java.awt.datatransfer.Clipboard;
-  import java.awt.datatransfer.DataFlavor;
-  import java.awt.datatransfer.StringSelection;
-  import java.awt.datatransfer.Transferable;
-  import java.awt.datatransfer.UnsupportedFlavorException;
-
-  void test() {
-    // copy text to the clipboard in Java:
-    StringSelection stringSelection = new StringSelection("Text to copy to clipboard");
-    Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-    clipboard.setContents(stringSelection, null);
-
-    //To paste text from the clipboard
-
-    clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-    Transferable contents = clipboard.getContents(null);
-    if (contents != null && contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
-      String text="";
-      try {
-        text = (String) contents.getTransferData(DataFlavor.stringFlavor);
-      }
-      catch (Exception ufe) {
-        text = "";
-      }
-      System.out.println(text);
-    }
+  public void clear() {
+    noStroke();
+    fill(backgnd);
+    rect(x, y, w, h);
+    fill(fillText);
   }
-
-
-  //-------------------------------------------------------------------
-
-  // Work in progress
-
-  public class TextEntry {
-    int x, y; // top left corner of keyboard entry area
-    int w, h; // width and height of keyboard entry area
-    int inset; // space between left border to start of text
-
-    color backgnd = color(128, 128, 128);
-    color fillText = color(255, 255, 255);
-
-    public TextEntry(int x, int y, int w, int h) {
-      this.x = x;
-      this.y = y;
-      this.w = w;
-      this.h = h;
-      inset = w/128;
-    }
-
-    public void clear() {
-      noStroke();
-      fill(backgnd);
-      rect(x, y, w, h);
-      fill(fillText);
-    }
-  }
+}

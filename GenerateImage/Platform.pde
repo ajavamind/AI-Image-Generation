@@ -206,10 +206,11 @@ void selectImageFile(File selection) {
     println("User selected " + selection.getAbsolutePath());
     editImagePath = selection.getAbsolutePath();
     promptList[1] = editImagePath.substring(editImagePath.lastIndexOf(File.separator)+1);
-    saved = true;
+    current = 0;
+    saved[current] = true;
     println("selectImageFile: "+promptList[1]);
     println(editImagePath);
-    receivedImage = loadImage(editImagePath);
+    receivedImage[current] = loadImage(editImagePath);
   }
 }
 
