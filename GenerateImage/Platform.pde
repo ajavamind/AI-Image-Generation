@@ -7,7 +7,7 @@ private final static int JAVA_MODE = 0;
 private final static int ANDROID_MODE = 1;
 int buildMode = JAVA_MODE;  // change manually for the build
 
-// ***** Important Comment Out the unused platform code below 
+// ***** Important Comment Out the unused platform code below
 
 //// Android Platform Build Mode
 //import android.content.SharedPreferences;
@@ -23,7 +23,7 @@ int buildMode = JAVA_MODE;  // change manually for the build
 //SelectLibrary files;
 
 //void openFileSystem() {
-//  requestPermissions(); 
+//  requestPermissions();
 //  files = new SelectLibrary(this);
 //}
 
@@ -35,7 +35,7 @@ int buildMode = JAVA_MODE;  // change manually for the build
 //  for (int i=0; i<permissions.length; i++) {
 //    println(permissions[i]);
 //  }
-//}  
+//}
 
 //void requestPermissions() {
 //  if (!hasPermission("android.permission.READ_EXTERNAL_STORAGE")) {
@@ -157,11 +157,10 @@ void selectMaskImage() {
 }
 
 void selectOutputFolder() {
-    selectFolder("Select Output Folder", "selectOutputFolder");
+  selectFolder("Select Output Folder", "selectOutputFolder");
 }
 
 void saveConfig(String config) {
-  
 }
 
 String loadConfig()
@@ -198,19 +197,35 @@ void selectOutputFolder(File selection) {
   }
 }
 
+private File imageSelection; // save image File selected for reload function
+private File maskSelection; // save mask File selected for reload function
+private File cameraImageSelection; // save camera image File for reload function
+
 void selectImageFile(File selection) {
   if (selection == null) {
-    println("Selection window was closed or the user hit cancel.");
+    if (DEBUG) println("Selection window was closed or the user hit cancel.");
     //showMsg("Selection window was closed or canceled.");
   } else {
-    println("User selected " + selection.getAbsolutePath());
-    editImagePath = selection.getAbsolutePath();
+    if (DEBUG) println("User selected " + selection.getAbsolutePath());
+    imageSelection = selection;
+    processImageSelection();
+  }
+}
+
+void processImageSelection() {
+  if (imageSelection != null) {
+    editImagePath = imageSelection.getAbsolutePath();
     promptList[1] = editImagePath.substring(editImagePath.lastIndexOf(File.separator)+1);
     current = 0;
+    for (int i=0; i<numImages; i++) {
+      receivedImage[i] = null;
+      saved[i] = false;
+      imageURL[i] = "";
+    }
     saved[current] = true;
-    println("selectImageFile: "+promptList[1]);
-    println(editImagePath);
     receivedImage[current] = loadImage(editImagePath);
+    if (DEBUG) println("editImagePath="+editImagePath);
+    if (DEBUG) println("selectImageFile: "+promptList[1]);
   }
 }
 
@@ -220,7 +235,66 @@ void selectMaskImageFile(File selection) {
     //showMsg("Selection window was closed or canceled.");
   } else {
     if (DEBUG) println("User selected " + selection.getAbsolutePath());
-    editMaskPath = selection.getAbsolutePath();
+    maskSelection = selection;
+    processMaskSelection();
+  }
+}
+
+void processMaskSelection() {
+  if (maskSelection != null) {
+    editMaskPath = maskSelection.getAbsolutePath();
     maskImage = loadImage(editMaskPath);
+  }
+}
+
+void processCameraImageSelection() {
+  if (cameraImageSelection != null) {
+    editImagePath = cameraImageSelection.getAbsolutePath();
+    promptList[1] = editImagePath.substring(editImagePath.lastIndexOf(File.separator)+1);
+    current = 0;
+    for (int i=0; i<numImages; i++) {
+      receivedImage[i] = null;
+      saved[i] = false;
+      imageURL[i] = "";
+    }
+    saved[current] = true;
+    receivedImage[current] = loadImage(editImagePath);
+    if (DEBUG) println("editImagePath="+editImagePath);
+    if (DEBUG) println("selectImageFile: "+promptList[1]);
+  }
+}
+
+void saveCameraImageSelection(String filename) {
+  cameraImageSelection = new File(filename);
+}
+
+void saveScreenshot() {
+  if (screenshot) {
+    screenshot = false;
+    saveScreen(saveFolderPath, "screenshot_"+ getDateTime() + "_", number(screenshotCounter), "png");
+    if (DEBUG) println("save "+ "screenshot_" + number(screenshotCounter));
+    screenshotCounter++;
+  }
+}
+
+// Save image of the composite screen
+void saveScreen(String outputFolderPath, String outputFilename, String suffix, String filetype) {
+  save(outputFolderPath + File.separator + outputFilename + suffix + "." + filetype);
+}
+
+String getDateTime() {
+  Date current_date = new Date();
+  String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(current_date);
+  return timeStamp;
+}
+
+// calls exiftool exe in the path
+// sets portrait orientation by rotate camera left
+void setEXIF(String filename) {
+  try {
+    Process process = Runtime.getRuntime().exec("exiftool -n -orientation=6 "+filename);
+    process.waitFor();
+  }
+  catch (Exception ex) {
   }
 }

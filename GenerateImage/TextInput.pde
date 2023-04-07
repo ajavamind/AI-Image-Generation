@@ -1,4 +1,5 @@
-// Text Entry
+// Text Entry and control key input handling //<>//
+// Key codes serve dual purpose for commands and text entry
 
 static final int KEYCODE_NOP = 0;
 static final int KEYCODE_BACK = 4;
@@ -10,6 +11,9 @@ static final int KEY_CTRL_C = 3;
 static final int KEY_CTRL_V = 22;
 static final int KEY_CTRL_Z = 26;
 
+static final int KEYCODE_SHIFT = 16;
+static final int KEYCODE_CTRL = 17;
+static final int KEYCODE_ALT = 18;
 static final int KEYCODE_ESC = 27;
 
 static final int KEYCODE_SPACE = 32;
@@ -80,6 +84,13 @@ static final int KEYCODE_F7 = 118;
 static final int KEYCODE_F8 = 119;
 static final int KEYCODE_F9 = 120;
 static final int KEYCODE_F10 = 121;
+static final int KEYCODE_F11 = 122;
+static final int KEYCODE_F12 = 123;
+
+static final int KEYCODE_LEFT_BRACE = 123;
+static final int KEYCODE_VERTICAL = 124;
+static final int KEYCODE_RIGHT_BRACE = 125;
+static final int KEYCODE_TILDE = 126;
 
 static final int KEYCODE_DEL = 127;
 static final int KEYCODE_QUOTE = 222;
@@ -90,17 +101,36 @@ static final int KEY_CONTROL = 65535;
 
 //-------------------------------------------------------------------------------------
 
+private boolean shiftKey = false;
+private boolean controlKey = false;
+private boolean altKey = false;
+
 void keyPressed() {
   println("key="+ key + " key10=" + int(key) + " keyCode="+keyCode);
   if (lastKeyCode == KEYCODE_ERROR) {
     return;
   } else if (keyCode >= KEYCODE_COMMA && keyCode <= KEYCODE_RIGHT_BRACKET
     || key == ' ' || keyCode == KEYCODE_QUOTE ) {
-    lastKey = key;
-    lastKeyCode = KEYCODE_KEYBOARD; // these keys for prompt text entry
-  } else {
-    lastKey = key;
-    lastKeyCode = keyCode;
+    keyCode = KEYCODE_KEYBOARD; // these keys for prompt text entry
+  } else if (key==ESC) {  // prevent worker sketch exit
+    key = 0; // override so that key is ignored
+    keyCode = KEYCODE_ESC;
+  } else if (keyCode == KEYCODE_CTRL) {
+    controlKey = true;
+  } else if (keyCode == KEYCODE_ALT) {
+    altKey = true;
+  }
+  lastKey = key;
+  lastKeyCode = keyCode;
+}
+
+void keyReleased() {
+  if (keyCode == KEYCODE_CTRL) {
+    controlKey = false;
+    println("keyReleased Ctrl");
+  } else if (keyCode == KEYCODE_ALT) {
+    altKey = false;
+    println("keyReleased Alt");
   }
 }
 
@@ -112,29 +142,31 @@ void keyPressed() {
 boolean updateKey() {
   //println("lastKey="+ lastKey + " lastKeyCode="+lastKeyCode);
   boolean status = false;
-  
-  // control keys
+
+  // check for control keys
   switch(lastKey) {
-    case KEY_CTRL_V:
-      pasteClipboard();
-      status = true;
-      lastKey = 0;
-      lastKeyCode = 0;
-      return status;
-    case KEY_CTRL_C:
-      copyText();
-      status = true;
-      lastKey = 0;
-      lastKeyCode = 0;
-      return status;
-    case KEY_CTRL_Z:
-      // TODO
-      status = true;
-      lastKey = 0;
-      lastKeyCode = 0;
-      return status;
+  case KEY_CTRL_V:
+    pasteClipboard();
+    status = true;
+    lastKey = 0;
+    lastKeyCode = 0;
+    return status;
+  case KEY_CTRL_C:
+    copyText();
+    status = true;
+    lastKey = 0;
+    lastKeyCode = 0;
+    return status;
+  case KEY_CTRL_Z:
+    // TODO
+    status = true;
+    lastKey = 0;
+    lastKeyCode = 0;
+    return status;
+  default:
+    break;
   }
-  
+
   switch(lastKeyCode) {
   case KEYCODE_ERROR:
     for (int i=0; i<numImages; i++) {
@@ -160,13 +192,13 @@ boolean updateKey() {
     createType = GENERATE_IMAGE;
     break;
   case KEYCODE_F2:
-    createType = EDIT_IMAGE;
+    createType = EDIT_MASK_IMAGE;
     println("EDIT IMAGE mode");
     editNewImage(receivedImage[current], maskImage, false);
     break;
   case KEYCODE_F3:
     println("EDIT embedded MASK IMAGE mode");
-    createType = EDIT_MASK_IMAGE;
+    createType = EDIT_EMBED_MASK_IMAGE;
     editNewImage(receivedImage[current], maskImage, true);
     break;
   case KEYCODE_F4:
@@ -174,16 +206,44 @@ boolean updateKey() {
     createType = VARIATION_IMAGE;
     break;
   case KEYCODE_F5:
+    println("F5 Unused");
+    break;
+  case KEYCODE_F6:
     println("Select Output Folder");
     selectOutputFolder();
     break;
+  case KEYCODE_F7:
+    println("F7 Unused");
+    break;
+  case KEYCODE_F8:
+    println("Camera Image Input");
+    if (controlKey) {
+      processCameraImageSelection();
+    } else {
+      selectCameraImage(null, null, true);
+    }
+    break;
   case KEYCODE_F9:
     println("Select Image File");
-    selectInputImage();
+    if (controlKey) {
+      processImageSelection();  // reload image
+    } else {
+      selectInputImage();
+    }
     break;
   case KEYCODE_F10:
     println("Select Image Mask File");
-    selectMaskImage();
+    if (controlKey) {
+      processMaskSelection();  // reload mask
+    } else {
+      selectMaskImage();
+    }
+    break;
+  case KEYCODE_F11:
+    break;
+  case KEYCODE_F12:
+    if (DEBUG) println("screenshot command");
+    screenshot = true;
     break;
   case KEYCODE_TAB:
     current++;
@@ -217,6 +277,9 @@ boolean updateKey() {
   case KEYCODE_END:
     promptIndex = promptEntry.length();
     break;
+  case KEYCODE_ESC:
+    exit(); // exit gracefully
+    break;
   default:
     break;
   }
@@ -225,10 +288,16 @@ boolean updateKey() {
   return status;
 }
 
+// TODO
+//String[] args ={this.toString()};  //Need to attach current name which is stripped by the new sketch
+//String[] newArgs = {name, str(handle)};
+//SecondApplet sa = new SecondApplet();
+//PApplet.runSketch(concat(args, newArgs), sa);
+
 void editNewImage(PImage inputImage, PImage maskImage, boolean embed) {
   if (inputImage != null) {
     if (!edit) {
-      String[] sketchName = {"EditImage"};
+      String[] sketchName = {"Edit Mask Image"};
       if (editImageSketch == null) {
         editImageSketch = new EditMaskImage();
         runSketch(sketchName, editImageSketch);
@@ -240,6 +309,22 @@ void editNewImage(PImage inputImage, PImage maskImage, boolean embed) {
     }
   }
 }
+
+void selectCameraImage(PImage inputImage, PImage maskImage, boolean embed) {
+  if (inputImage == null) {
+    String[] sketchName = {"Camera Input"};
+    if (cameraImageSketch == null) {
+      cameraImageSketch = new CameraInputImage();
+      runSketch(sketchName, cameraImageSketch);
+      cameraImageSketch.init(inputImage, maskImage, embed);
+    } else {
+      cameraImageSketch.getSurface().setVisible(true);  // get focus for CameraInput
+    }
+  } else {
+    cameraImageSketch.init(inputImage, maskImage, embed);
+  }
+}
+
 
 void addKey(char aKey) {
   promptEntry.insert(promptIndex, aKey);

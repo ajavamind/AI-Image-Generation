@@ -1,7 +1,8 @@
 /**
  *
  * Generate AI images from a text prompt using OpenAI Dall-E2 API
- * written by Andy Modla, copyright 2023
+ * Written by Andy Modla, copyright 2023
+ * Currently coded to run in Processing SDK for Java on Windows
  *
  * Sketch calls OpenAI-Java API from a Github implementation found at
  * https://github.com/TheoKanning/openai-java
@@ -15,23 +16,30 @@
  * https://dallery.gallery/wp-content/uploads/2022/07/The-DALL%C2%B7E-2-prompt-book-v1.02.pdf
  
  * Keyboard Operation:
- * ESC key exit program
+ * ESC key exit program or give focus to main window GenerateImage
  * Enter key sends text prompt request to DALL-E2 service of OpenAI
  *
- *  OPENAI_TOKEN is your paid account token stored in the environment variables for Windows 10/11
+ *  OPENAI_TOKEN is your paid account token stored as an environment variable for Windows 10/11
  *
- * Image files received are saved in a default output folder with text prompt for filename
+ * Image files received are saved in a default output folder with a shortened text prompt used as the filename
  */
 
+// OpenAI-Java library imports
 import com.theokanning.openai.service.OpenAiService;
 import com.theokanning.openai.completion.CompletionRequest;
 import com.theokanning.openai.image.CreateImageRequest;
 import com.theokanning.openai.*;
-import java.time.Duration;
 
-private static final boolean DEBUG_GUI = false;
-//private static final boolean DEBUG_GUI = true;
+import java.time.Duration;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Enumeration;
+import java.util.Locale;
+
+//private static final boolean DEBUG_GUI = false;
+private static final boolean DEBUG_GUI = true; // prevents invoking OpenAI service
 private static final boolean DEBUG = true;  // Log println on Processing SDK console
+
 private static final Duration IMAGE_TIMEOUT = Duration.ofSeconds(120); // seconds
 
 OpenAiService service;
@@ -43,7 +51,7 @@ private static final int NUM = 4; // maximum number of images to request
 int numImages = NUM; // number of images requested from openai service
 int imageSize = 1024;  // square default working size and aspect ratio
 String genImageSize = "1024x1024";
-// note image type is always png
+// note image type is always png with transparency
 
 PImage[] receivedImage; // images downloaded from ImageResult following a request
 int current = 0;  // index for receivedImage main display
@@ -61,6 +69,7 @@ String promptSuffix;
 String requestPrompt;  // should be less than 400 characters for Dall-E 2
 String saveFolder = "output"; // default output folder location relative to sketch path
 String saveFolderPath; // full path to save folder
+String sessionDateTime;
 
 String[] promptList = new String[3];
 //promptList[0] = prompt;
@@ -69,19 +78,22 @@ String[] promptList = new String[3];
 
 int imageCounter = 1;
 boolean[] saved;
+boolean showIntroduction = true;
 boolean start = false;
 boolean ready = false;
 boolean edit = false;
+boolean screenshot = false;
+int screenshotCounter = 1;
 
 private static final String MODE = "Mode: ";
 private static final int GENERATE_IMAGE = 0;
-private static final int EDIT_IMAGE = 1;
-private static final int EDIT_MASK_IMAGE = 2;
+private static final int EDIT_MASK_IMAGE = 1;
+private static final int EDIT_EMBED_MASK_IMAGE = 2;
 private static final int VARIATION_IMAGE = 3;
-private static final String GENERATE_IMAGE_DESC = "Generate Image";
-private static final String EDIT_IMAGE_DESC = "Edit Image With Mask";
-private static final String EDIT_MASK_IMAGE_DESC = "Edit Image With Embedded Mask";
-private static final String VARIATION_IMAGE_DESC = "Generate Variation";
+private static final String GENERATE_IMAGE_DESC = "F1 - Generate Image";
+private static final String EDIT_MASK_IMAGE_DESC = "F2 - Edit Mask";
+private static final String EDIT_EMBED_MASK_IMAGE_DESC = "F3 - Edit Embedded Mask";
+private static final String VARIATION_IMAGE_DESC = "F4 - Generate Variation";
 int createType = GENERATE_IMAGE; // type of image creation request
 
 // animation section
@@ -110,20 +122,27 @@ volatile int lastKey;
 volatile int lastKeyCode;
 
 String RENDERER = JAVA2D; // default for setup size()
-EditMaskImage editImageSketch; // mask image editor
+
+GenerateImage generateImageSketch; // main sketch window
+EditMaskImage editImageSketch; // mask image editor sketch window
+CameraInputImage cameraImageSketch; // camera input sketch window
 
 /**
  * sketch setup
  */
 void setup() {
-  size(1920, 1080);
+  size(1920, 1080, RENDERER);
   background(128);   // light gray
   fontHeight = 18;
   frameRate(appFrameRate);
   setTitle(TITLE);
+  generateImageSketch = this;
+  sessionDateTime = getDateTime();
 
-  // request focus on window so user does not have to press mouse key on window to get focus
-  // a quirk fix for processing sketches in Java on Windows
+  // request focus on main window
+  // needed so user does not have to press mouse button or keyboard key
+  // over the window to get focus
+  // fixes a quirk with processing sketches in Java on Windows
   try {
     if (RENDERER.equals(P2D)) {
       ((com.jogamp.newt.opengl.GLWindow) surface.getNative()).requestFocus();  // for P2D
@@ -220,7 +239,7 @@ void draw() {
     if (!promptSuffix.equals("")) requestPrompt +=  " " + promptSuffix;
 
     // build the request to OpenAI with the prompt depending on createType
-    if (createType == EDIT_IMAGE || createType == EDIT_MASK_IMAGE) {
+    if (createType == EDIT_MASK_IMAGE || createType == EDIT_EMBED_MASK_IMAGE) {
       println("\nEdit Image with prompt: " + prompt);
       editRequest = CreateImageEditRequest.builder()
         .prompt(requestPrompt)
@@ -255,12 +274,12 @@ void draw() {
       case GENERATE_IMAGE:
         thread("createImage");  // execute createImage method in a separate thread
         break;
-      case EDIT_IMAGE:
-        editMaskPath = editImageSketch.saveMask(saveFolderPath + File.separator + promptList[1]+"_RGBA.png", false);
+      case EDIT_MASK_IMAGE:
+        editMaskPath = editImageSketch.saveMask(saveFolderPath + File.separator + sessionDateTime + "_" + promptList[1]+"_RGBA.png", false);
         thread("createImageEdit"); // execute createImageEdit() method in a separate thread
         break;
-      case EDIT_MASK_IMAGE:
-        editImagePath = editImageSketch.saveMask(saveFolderPath + File.separator + promptList[1]+"_RGBA.png", true);
+      case EDIT_EMBED_MASK_IMAGE:
+        editImagePath = editImageSketch.saveMask(saveFolderPath + File.separator + sessionDateTime + "_" + promptList[1]+"_RGBA.png", true);
         editMaskPath = null;  // ignore because mask was embedded in original image editImagePath
         thread("createImageEdit");  // execute createImageEdit() method in a separate thread
         break;
@@ -275,6 +294,25 @@ void draw() {
       for (int i=0; i<numImages; i++) {
         imageURL[i] = testUrl;
       }
+      switch(createType) {
+      case GENERATE_IMAGE:
+        //thread("createImage");  // execute createImage method in a separate thread
+        break;
+      case EDIT_MASK_IMAGE:
+        editMaskPath = editImageSketch.saveMask(saveFolderPath + File.separator + sessionDateTime + "_" + promptList[1]+"_RGBA.png", false);
+        //thread("createImageEdit"); // execute createImageEdit() method in a separate thread
+        break;
+      case EDIT_EMBED_MASK_IMAGE:
+        editImagePath = editImageSketch.saveMask(saveFolderPath + File.separator + sessionDateTime + "_" + promptList[1]+"_RGBA.png", true);
+        editMaskPath = null;  // ignore because mask was embedded in original image editImagePath
+        //thread("createImageEdit");  // execute createImageEdit() method in a separate thread
+        break;
+      case VARIATION_IMAGE:
+        //thread("createImageVariation"); // execute createImageVariation method in a separate thread
+        break;
+      default:
+        break;
+      };
       ready = true;
     }
 
@@ -312,7 +350,7 @@ void draw() {
         }
         filename = temp.toString()  + "_"+ number(imageCounter);
         println("save image filename="+filename);
-        filenamePath = saveFolderPath+File.separator+filename;
+        filenamePath = saveFolderPath+File.separator+ sessionDateTime + "_" +filename;
         println("save received image filenamePath="+filenamePath+ ".png");
         receivedImage[j].save(filenamePath + ".png");
         promptList[0] = prompt;
@@ -329,6 +367,7 @@ void draw() {
   // check for valid image received before display and save
   if (receivedImage[current] != null && receivedImage[current].width>0 && receivedImage[current].height>0) {
     animation = false;
+    showIntroduction = false;
     image(receivedImage[current], 0, 0, receivedImage[current].width, receivedImage[current].height);
     fill(0);
     if (requestPrompt != null) text(requestPrompt, width/128, statusHeight);
@@ -364,11 +403,11 @@ void draw() {
   case GENERATE_IMAGE:
     text(MODE+GENERATE_IMAGE_DESC, x, y);
     break;
-  case EDIT_IMAGE:
-    text(MODE+EDIT_IMAGE_DESC, x, y);
-    break;
   case EDIT_MASK_IMAGE:
     text(MODE+EDIT_MASK_IMAGE_DESC, x, y);
+    break;
+  case EDIT_EMBED_MASK_IMAGE:
+    text(MODE+EDIT_EMBED_MASK_IMAGE_DESC, x, y);
     break;
   case VARIATION_IMAGE:
     text(MODE+VARIATION_IMAGE_DESC, x, y);
@@ -380,6 +419,9 @@ void draw() {
 
   // show any errors from the request
   showError(errorText);
+
+  // Drawing finished, check for screenshot command request
+  saveScreenshot();
 } // draw
 
 void showError(String str) {
@@ -518,27 +560,29 @@ static final String COPYRIGHT = "Copyright 2023 Andrew Modla";
 static String VERSION = "Version "+VERSION_NAME +" Number "+VERSION_CODE;
 
 void showIntroductionScreen() {
-  //println("Introduction Screen");
-  int introTextSize = 24;
-  int vstart = 60;
-  int voffset = vstart + introTextSize;
-  int hstart = 10;
-  int hoffset = hstart;
+  if (showIntroduction) {
+    //println("Introduction Screen");
+    int introTextSize = 24;
+    int vstart = 60;
+    int voffset = vstart + introTextSize;
+    int hstart = 10;
+    int hoffset = hstart;
 
-  textAlign(LEFT);
-  textSize(introTextSize);
-  fill(color(255, 128, 128));
+    textAlign(LEFT);
+    textSize(introTextSize);
+    fill(color(255, 128, 128));
 
-  text(TITLE, hoffset, voffset);
-  voffset += introTextSize;
-  text(SUBTITLE, hoffset, voffset);
-  voffset += introTextSize;
-  text(VERSION, hoffset, voffset);
-  voffset += introTextSize;
-  text(CREDITS, hoffset, voffset);
-  voffset += introTextSize;
-  text(COPYRIGHT, hoffset, voffset);
-  voffset += introTextSize;
+    text(TITLE, hoffset, voffset);
+    voffset += introTextSize;
+    text(SUBTITLE, hoffset, voffset);
+    voffset += introTextSize;
+    text(VERSION, hoffset, voffset);
+    voffset += introTextSize;
+    text(CREDITS, hoffset, voffset);
+    voffset += introTextSize;
+    text(COPYRIGHT, hoffset, voffset);
+    voffset += introTextSize;
+  }
 }
 
 //------------------------------------------------------------------------------------
