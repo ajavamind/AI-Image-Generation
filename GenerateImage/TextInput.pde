@@ -106,7 +106,7 @@ private boolean controlKey = false;
 private boolean altKey = false;
 
 void keyPressed() {
-  println("key="+ key + " key10=" + int(key) + " keyCode="+keyCode);
+  //println("key="+ key + " key10=" + int(key) + " keyCode="+keyCode);
   if (lastKeyCode == KEYCODE_ERROR) {
     return;
   } else if (keyCode >= KEYCODE_COMMA && keyCode <= KEYCODE_RIGHT_BRACKET
@@ -182,7 +182,7 @@ boolean updateKey() {
       for (int i=0; i<numImages; i++) saved[i] = false;
       start = true;
     }
-    println("promptList: ");
+    println("ENTER promptList: ");
     for (int i=0; i<promptList.length; i++) {
       println(promptList[i]);
     }
@@ -206,17 +206,21 @@ boolean updateKey() {
     createType = VARIATION_IMAGE;
     break;
   case KEYCODE_F5:
-    println("F5 Unused");
+    println("F5 Reload Image and Mask");
+    processImageSelection();  // reload image
+    processMaskSelection();  // reload mask
     break;
   case KEYCODE_F6:
-    println("Select Output Folder");
+    println("F6 Select Output Folder");
     selectOutputFolder();
     break;
   case KEYCODE_F7:
-    println("F7 Unused");
+    println("F7 Select Last image file in a directory");
+    selectHTMLServerImage();
+    animation = SHOW_SPINNER;
     break;
   case KEYCODE_F8:
-    println("Camera Image Input");
+    println("F8 Camera Image Input");
     if (controlKey) {
       processCameraImageSelection();
     } else {
@@ -224,7 +228,7 @@ boolean updateKey() {
     }
     break;
   case KEYCODE_F9:
-    println("Select Image File");
+    println("F9 Select Image File");
     if (controlKey) {
       processImageSelection();  // reload image
     } else {
@@ -232,7 +236,7 @@ boolean updateKey() {
     }
     break;
   case KEYCODE_F10:
-    println("Select Image Mask File");
+    println("F10 Select Image Mask File");
     if (controlKey) {
       processMaskSelection();  // reload mask
     } else {
@@ -242,7 +246,7 @@ boolean updateKey() {
   case KEYCODE_F11:
     break;
   case KEYCODE_F12:
-    if (DEBUG) println("screenshot command");
+    if (DEBUG) println("F12 screenshot command");
     screenshot = true;
     break;
   case KEYCODE_TAB:
@@ -306,6 +310,7 @@ void editNewImage(PImage inputImage, PImage maskImage, boolean embed) {
       }
     } else {
       editImageSketch.init(inputImage, maskImage, embed);
+      editImageSketch.getSurface().setVisible(true);  // get focus for EditImageMask
     }
   }
 }
@@ -314,7 +319,7 @@ void selectCameraImage(PImage inputImage, PImage maskImage, boolean embed) {
   if (inputImage == null) {
     String[] sketchName = {"Camera Input"};
     if (cameraImageSketch == null) {
-      cameraImageSketch = new CameraInputImage();
+      cameraImageSketch = new UvcCameraInputImage();
       runSketch(sketchName, cameraImageSketch);
       cameraImageSketch.init(inputImage, maskImage, embed);
     } else {

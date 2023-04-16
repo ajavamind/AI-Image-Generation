@@ -200,8 +200,24 @@ void selectOutputFolder(File selection) {
 private File imageSelection; // save image File selected for reload function
 private File maskSelection; // save mask File selected for reload function
 private File cameraImageSelection; // save camera image File for reload function
+private File cameraServerImageSelection; // save camera server image File for reload function
 
 void selectImageFile(File selection) {
+  if (selection == null) {
+    if (DEBUG) println("Selection window was closed or the user hit cancel.");
+    //showMsg("Selection window was closed or canceled.");
+  } else {
+    if (DEBUG) println("User selected " + selection.getAbsolutePath());
+    imageSelection = selection;
+    processImageSelection();
+  }
+}
+
+void selectHTMLServerImage() {
+  thread("readServerImage");
+}
+
+void selectCameraServerImage(File selection) {
   if (selection == null) {
     if (DEBUG) println("Selection window was closed or the user hit cancel.");
     //showMsg("Selection window was closed or canceled.");
@@ -223,7 +239,7 @@ void processImageSelection() {
       imageURL[i] = "";
     }
     saved[current] = true;
-    receivedImage[current] = loadImage(editImagePath);
+    receivedImage[current] = loadImage(editImagePath); // TODO before resize and save file to png
     if (DEBUG) println("editImagePath="+editImagePath);
     if (DEBUG) println("selectImageFile: "+promptList[1]);
   }
@@ -241,13 +257,16 @@ void selectMaskImageFile(File selection) {
 }
 
 void processMaskSelection() {
+  println("processMaskSelection()");
   if (maskSelection != null) {
     editMaskPath = maskSelection.getAbsolutePath();
     maskImage = loadImage(editMaskPath);
+    println("editMaskPath="+editMaskPath);
   }
 }
 
 void processCameraImageSelection() {
+  println("processCameraImageSelection()");
   if (cameraImageSelection != null) {
     editImagePath = cameraImageSelection.getAbsolutePath();
     promptList[1] = editImagePath.substring(editImagePath.lastIndexOf(File.separator)+1);
@@ -259,13 +278,17 @@ void processCameraImageSelection() {
     }
     saved[current] = true;
     receivedImage[current] = loadImage(editImagePath);
-    if (DEBUG) println("editImagePath="+editImagePath);
-    if (DEBUG) println("selectImageFile: "+promptList[1]);
+    if (DEBUG) println("camera editImagePath="+editImagePath);
+    if (DEBUG) println("camera selectCameraFile: "+promptList[1]);
   }
 }
 
+// TODO process camera image mask **************************************************************
 void saveCameraImageSelection(String filename) {
+  println("saveCameraImageSelection("+filename+")");
   cameraImageSelection = new File(filename);
+  promptList[2] = filename;
+  editImagePath = cameraImageSelection.getAbsolutePath();
 }
 
 void saveScreenshot() {

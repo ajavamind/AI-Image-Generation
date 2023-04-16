@@ -158,14 +158,14 @@ public class EditMaskImage extends PApplet {
       if (brushSize <= MIN_BRUSH_SIZE) brushSize = MIN_BRUSH_SIZE;
       break;
       
-    case KEYCODE_RIGHT_BRACE: // transparency
-      transparency += 1;
-      if (transparency > 255) transparency = 255;
-      break;
-    case KEYCODE_LEFT_BRACE:  // reduce transparency
-      transparency -= 1;
-      if (transparency < 0) transparency = 0;
-      break;
+    //case KEYCODE_RIGHT_BRACE: // transparency
+    //  transparency += 1;
+    //  if (transparency > 255) transparency = 255;
+    //  break;
+    //case KEYCODE_LEFT_BRACE:  // reduce transparency
+    //  transparency -= 1;
+    //  if (transparency < 0) transparency = 0;
+    //  break;
       
     case KEYCODE_PLUS: // zoom in
       if (createType == EDIT_EMBED_MASK_IMAGE) {
@@ -216,7 +216,7 @@ public class EditMaskImage extends PApplet {
     }
     editKey = key;
     editKeyCode = keyCode;
-    if (DEBUG) println("EditImage key="+ editKey + " key10=" + int(editKey) + " keyCode="+editKeyCode);
+    if (DEBUG) println("EditMaskImage key="+ editKey + " key10=" + int(editKey) + " keyCode="+editKeyCode);
   }
 
   /**
@@ -226,9 +226,9 @@ public class EditMaskImage extends PApplet {
     img.loadPixels();
     for (int i=0; i<img.pixels.length; i++) {
       if (img.pixels[i] == 0xFFFFFFFF) {
-        img.pixels[i] = color(0,0,0, transparency); //0x00000000;
+        img.pixels[i] = color(0,0,0,0); 
       } else {
-        img.pixels[i] = color(255,255,255, transparency);  //0xFFFFFFFF;
+        img.pixels[i] = color(255,255,255,255);
       }
     }
     img.updatePixels();

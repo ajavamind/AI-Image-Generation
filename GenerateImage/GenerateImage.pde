@@ -36,8 +36,8 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.Locale;
 
-//private static final boolean DEBUG_GUI = false;
-private static final boolean DEBUG_GUI = true; // prevents invoking OpenAI service
+private static final boolean DEBUG_GUI = false;
+//private static final boolean DEBUG_GUI = true; // prevents invoking OpenAI service
 private static final boolean DEBUG = true;  // Log println on Processing SDK console
 
 private static final Duration IMAGE_TIMEOUT = Duration.ofSeconds(120); // seconds
@@ -47,8 +47,9 @@ CreateImageRequest request;
 CreateImageEditRequest editRequest;
 CreateImageVariationRequest variationRequest;
 
-private static final int NUM = 4; // maximum number of images to request
-int numImages = NUM; // number of images requested from openai service
+private static final int NUM = 4; // maximum number of images to request, up to 10 allowed by Dall-E2
+private static final int NUM_DISPLAY = 4; // maximum number of images to request
+int numImages = NUM; // number of images requested from openai service, default
 int imageSize = 1024;  // square default working size and aspect ratio
 String genImageSize = "1024x1024";
 // note image type is always png with transparency
@@ -97,13 +98,14 @@ private static final String VARIATION_IMAGE_DESC = "F4 - Generate Variation";
 int createType = GENERATE_IMAGE; // type of image creation request
 
 // animation section
-boolean animation = false;  // flag to control animation while waiting for openai to respond
 static final int ANIMATION_STEPS = 4;
-int[] animationCounter = new int[2];
+int[] animationCounter = new int[3];
 String[] animationSequence = {"|", "/", "-", "\\"};
 int animationHeight = 96;
-static final int SHOW_SECONDS = 0;
-static final int SHOW_SYMBOLS = 1;
+static final int NO_ANIMATION = 0;
+static final int SHOW_SECONDS = 1;
+static final int SHOW_SPINNER = 2;
+int animation = NO_ANIMATION;  // flag to control animation while waiting for openai to respond
 
 int statusHeight;
 int promptHeight;
@@ -125,7 +127,7 @@ String RENDERER = JAVA2D; // default for setup size()
 
 GenerateImage generateImageSketch; // main sketch window
 EditMaskImage editImageSketch; // mask image editor sketch window
-CameraInputImage cameraImageSketch; // camera input sketch window
+UvcCameraInputImage cameraImageSketch; // camera input sketch window
 
 /**
  * sketch setup
@@ -187,9 +189,9 @@ void setup() {
   // change prefix and suffix as needed, final prompt is concatenation of
   // promptPrefix + prompt + promptSuffix
 
-  receivedImage = new PImage[NUM];
-  imageURL = new String[NUM];
-  saved = new boolean[NUM];
+  receivedImage = new PImage[NUM_DISPLAY];
+  imageURL = new String[NUM_DISPLAY];
+  saved = new boolean[NUM_DISPLAY];
   for (int i=0; i<numImages; i++) saved[i] = false;
   current = 0;
 
@@ -266,7 +268,7 @@ void draw() {
       imageURL[i] = "";
     }
     ready = false;
-    animation = true; // allow animatins while waiting for OpenAI response to request
+    animation = SHOW_SECONDS; // allow animatins while waiting for OpenAI response to request
 
     // start thread to create Image and wait for response from OpenAI DallE2
     if (!DEBUG_GUI) {
@@ -366,7 +368,7 @@ void draw() {
 
   // check for valid image received before display and save
   if (receivedImage[current] != null && receivedImage[current].width>0 && receivedImage[current].height>0) {
-    animation = false;
+    animation = NO_ANIMATION;
     showIntroduction = false;
     image(receivedImage[current], 0, 0, receivedImage[current].width, receivedImage[current].height);
     fill(0);
@@ -377,7 +379,9 @@ void draw() {
 
   // display all images received as large thumbnails
   // check for valid image received before display
-  for (int i=0; i<numImages; i++) {
+  int num = NUM_DISPLAY;
+  
+  for (int i=0; i<num; i++) {
     if (receivedImage[i] != null && receivedImage[i].width>0 && receivedImage[i].height>0) {
       // temporary code, TO DO make layout flexible
       image(receivedImage[i], 1024 + (i%2)*448, 128+(i/2)*448, 448, 448);
@@ -388,8 +392,7 @@ void draw() {
     }
   }
 
-  doAnimation(animation, SHOW_SECONDS);  // elapsed time animation
-  //doAnimation(animation, SHOW_SYMBOLS); // spinner
+  doAnimation(animation);  //
 
   // Show mode in information section
   fill(192);
@@ -460,7 +463,7 @@ void createImage() {
     errorText = "Service problem "+ rex;
     println("Service problem "+ rex);
     lastKeyCode = KEYCODE_ERROR;
-    animation = false;
+    animation = NO_ANIMATION;
   }
 }
 
@@ -480,7 +483,7 @@ void createImageEdit() {
     errorText = "Service problem "+ rex;
     println("Service problem "+ rex);
     lastKeyCode = KEYCODE_ERROR;
-    animation = false;
+    animation = NO_ANIMATION;
   }
 }
 
@@ -498,7 +501,7 @@ void createImageVariation() {
     errorText = "Service problem "+ rex;
     println("Service problem "+ rex);
     lastKeyCode = KEYCODE_ERROR;
-    animation = false;
+    animation = NO_ANIMATION;
   }
 }
 
@@ -523,31 +526,29 @@ PImage makeTransparent(PImage img) {
 
 /**
  * Perform animation while waiting for OpenAI
- * status true for animation on
- * select type of animation
+ * selectAnimation type of animation
  */
-void doAnimation(boolean status, int selectAnimation) {
-  if (status) {
-    fill(color(0, 0, 255));
-    textSize(animationHeight);
-    switch(selectAnimation) {
-    case 0:
-      int seconds = animationCounter[selectAnimation]/int(appFrameRate);
-      String working0 = str(seconds) + " ... \u221e" ;  // infinity
-      text(working0, imageSize/2- textWidth(working0)/2, height/2);
-      animationCounter[selectAnimation]++;
-      break;
-    case 1:
-      String working1 = animationSequence[animationCounter[selectAnimation]]; // Symbol sequence
-      text(working1, imageSize/2 - textWidth(working1)/2, height/2);
-      animationCounter[selectAnimation]++;
-      if (animationCounter[selectAnimation] >= ANIMATION_STEPS) animationCounter[selectAnimation] = 0;
-      break;
-    default:
-      break;
-    }
-  } else {
-    animationCounter[selectAnimation] = 0;
+void doAnimation(int selectAnimation) {
+  fill(color(0, 0, 255));
+  textSize(animationHeight);
+  switch(selectAnimation) {
+  case SHOW_SECONDS:
+    int seconds = animationCounter[selectAnimation]/int(appFrameRate);
+    String working0 = str(seconds) + " ... \u221e" ;  // infinity
+    text(working0, imageSize/2- textWidth(working0)/2, height/2);
+    animationCounter[selectAnimation]++;
+    break;
+  case SHOW_SPINNER:
+    String working1 = animationSequence[animationCounter[selectAnimation]]; // Symbol sequence
+    text(working1, imageSize/2 - textWidth(working1)/2, height/2);
+    animationCounter[selectAnimation]++;
+    if (animationCounter[selectAnimation] >= ANIMATION_STEPS) animationCounter[selectAnimation] = 0;
+    break;
+  default:
+    animationCounter[0] = 0;
+    animationCounter[1] = 0;
+    animationCounter[2] = 0;
+    break;
   }
 }
 
