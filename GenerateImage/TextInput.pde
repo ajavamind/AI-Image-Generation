@@ -105,12 +105,25 @@ private boolean shiftKey = false;
 private boolean controlKey = false;
 private boolean altKey = false;
 
+StringBuilder promptEntry;
+int promptIndex;
+String[] promptList = new String[3];
+//promptList[0] = prompt;
+//promptList[1] = filename;
+//promptList[2] = filenamePath + ".png";
+
+static final int FILENAME_LENGTH = 60;
+
+// store for key presses when it is time for draw() to process input key commands
+volatile int lastKey;
+volatile int lastKeyCode;
+
 void keyPressed() {
   //println("key="+ key + " key10=" + int(key) + " keyCode="+keyCode);
   if (lastKeyCode == KEYCODE_ERROR) {
     return;
   } else if (keyCode >= KEYCODE_COMMA && keyCode <= KEYCODE_RIGHT_BRACKET
-    || key == ' ' || keyCode == KEYCODE_QUOTE ) {
+    || key == ' ' || keyCode == KEYCODE_QUOTE || key == '`') {
     keyCode = KEYCODE_KEYBOARD; // these keys for prompt text entry
   } else if (key==ESC) {  // prevent worker sketch exit
     key = 0; // override so that key is ignored
@@ -182,9 +195,11 @@ boolean updateKey() {
       for (int i=0; i<numImages; i++) saved[i] = false;
       start = true;
     }
-    println("ENTER promptList: ");
-    for (int i=0; i<promptList.length; i++) {
-      println(promptList[i]);
+    if (DEBUG) {
+      println("ENTER promptList: ");
+      for (int i=0; i<promptList.length; i++) {
+        println(promptList[i]);
+      }
     }
     break;
   case KEYCODE_F1:
@@ -252,6 +267,7 @@ boolean updateKey() {
   case KEYCODE_TAB:
     current++;
     if (current == numImages) current = 0;
+    editImagePath = receivedImageSave[current];
     break;
   case KEYCODE_KEYBOARD:
     addKey(char(lastKey));
@@ -282,6 +298,7 @@ boolean updateKey() {
     promptIndex = promptEntry.length();
     break;
   case KEYCODE_ESC:
+    service.shutdownExecutor();
     exit(); // exit gracefully
     break;
   default:
@@ -290,44 +307,6 @@ boolean updateKey() {
   lastKey = 0;
   lastKeyCode = 0;
   return status;
-}
-
-// TODO
-//String[] args ={this.toString()};  //Need to attach current name which is stripped by the new sketch
-//String[] newArgs = {name, str(handle)};
-//SecondApplet sa = new SecondApplet();
-//PApplet.runSketch(concat(args, newArgs), sa);
-
-void editNewImage(PImage inputImage, PImage maskImage, boolean embed) {
-  if (inputImage != null) {
-    if (!edit) {
-      String[] sketchName = {"Edit Mask Image"};
-      if (editImageSketch == null) {
-        editImageSketch = new EditMaskImage();
-        runSketch(sketchName, editImageSketch);
-        editImageSketch.init(inputImage, maskImage, embed);
-        edit = true;
-      }
-    } else {
-      editImageSketch.init(inputImage, maskImage, embed);
-      editImageSketch.getSurface().setVisible(true);  // get focus for EditImageMask
-    }
-  }
-}
-
-void selectCameraImage(PImage inputImage, PImage maskImage, boolean embed) {
-  if (inputImage == null) {
-    String[] sketchName = {"Camera Input"};
-    if (cameraImageSketch == null) {
-      cameraImageSketch = new UvcCameraInputImage();
-      runSketch(sketchName, cameraImageSketch);
-      cameraImageSketch.init(inputImage, maskImage, embed);
-    } else {
-      cameraImageSketch.getSurface().setVisible(true);  // get focus for CameraInput
-    }
-  } else {
-    cameraImageSketch.init(inputImage, maskImage, embed);
-  }
 }
 
 

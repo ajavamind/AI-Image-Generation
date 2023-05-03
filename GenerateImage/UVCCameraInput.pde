@@ -10,6 +10,31 @@ import org.opencv.core.Mat;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.videoio.Videoio;
 
+
+void selectCameraImage(PImage inputImage, PImage maskImage, boolean embed) {
+  if (inputImage == null) {
+    String[] sketchName = {"Camera Input"};
+    if (cameraImageSketch == null) {
+      cameraImageSketch = new UvcCameraInputImage();
+      runSketch(sketchName, cameraImageSketch);
+      cameraImageSketch.init(inputImage, maskImage, embed);
+    } else {
+      cameraImageSketch.getSurface().setVisible(true);  // get focus for CameraInput
+    }
+  } else {
+    cameraImageSketch.init(inputImage, maskImage, embed);
+  }
+}
+
+// TODO process camera image mask **************************************************************
+void saveCameraImageSelection(String filename) {
+  println("saveCameraImageSelection("+filename+")");
+  cameraImageSelection = new File(filename);
+  promptList[2] = filename;
+  editImagePath = cameraImageSelection.getAbsolutePath();
+}
+
+
 public class UvcCameraInputImage extends PApplet {
   VideoCapture video;
   OpenCV opencv;

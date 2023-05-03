@@ -55,6 +55,7 @@ String genImageSize = "1024x1024";
 // note image type is always png with transparency
 
 PImage[] receivedImage; // images downloaded from ImageResult following a request
+String[] receivedImageSave; // the filenames where images downloaded from ImageResult following a request are saved
 int current = 0;  // index for receivedImage main display
 PImage maskImage;  // mask
 String[] imageURL;  // image URL from result data response
@@ -68,14 +69,7 @@ String promptPrefix;
 String prompt;
 String promptSuffix;
 String requestPrompt;  // should be less than 400 characters for Dall-E 2
-String saveFolder = "output"; // default output folder location relative to sketch path
-String saveFolderPath; // full path to save folder
 String sessionDateTime;
-
-String[] promptList = new String[3];
-//promptList[0] = prompt;
-//promptList[1] = filename;
-//promptList[2] = filenamePath + ".png";
 
 int imageCounter = 1;
 boolean[] saved;
@@ -112,16 +106,9 @@ int promptHeight;
 int errorMessageHeight;
 int fontHeight;
 String errorText;
-StringBuilder promptEntry;
-int promptIndex;
-static final int FILENAME_LENGTH = 60;
 PImage testImage;
 String testUrl;
 float appFrameRate = 30; // draw frames per second
-
-// store for key presses when it is time for draw() to process input key commands
-volatile int lastKey;
-volatile int lastKeyCode;
 
 String RENDERER = JAVA2D; // default for setup size()
 
@@ -190,6 +177,7 @@ void setup() {
   // promptPrefix + prompt + promptSuffix
 
   receivedImage = new PImage[NUM_DISPLAY];
+  receivedImageSave = new String[NUM_DISPLAY];
   imageURL = new String[NUM_DISPLAY];
   saved = new boolean[NUM_DISPLAY];
   for (int i=0; i<numImages; i++) saved[i] = false;
@@ -353,8 +341,10 @@ void draw() {
         filename = temp.toString()  + "_"+ number(imageCounter);
         println("save image filename="+filename);
         filenamePath = saveFolderPath+File.separator+ sessionDateTime + "_" +filename;
-        println("save received image filenamePath="+filenamePath+ ".png");
-        receivedImage[j].save(filenamePath + ".png");
+        String name = filenamePath + ".png";
+        println("save received image filenamePath="+name);
+        receivedImage[j].save(name);
+        receivedImageSave[j] = name;
         promptList[0] = prompt;
         promptList[1] = filename;
         promptList[2] = filenamePath + ".png";
@@ -469,9 +459,7 @@ void createImage() {
 
 // createImageEdit called in a background thread
 void createImageEdit() {
-  println("createImageEdit()");
-  println("editImagePath="+editImagePath);
-  println("editMaskPath="+editMaskPath);
+  println("createImageEdit() "+editImagePath +" " + editMaskPath);
   try {
     ready = true;
     ImageResult result = service.createImageEdit(editRequest, editImagePath, editMaskPath);
@@ -489,7 +477,7 @@ void createImageEdit() {
 
 // createImageVariation called in a background thread
 void createImageVariation() {
-  println("createImageVariation()");
+  println("createImageVariation() "+ editImagePath);
   try {
     ready = true;
     ImageResult result = service.createImageVariation(variationRequest, editImagePath);
@@ -502,6 +490,23 @@ void createImageVariation() {
     println("Service problem "+ rex);
     lastKeyCode = KEYCODE_ERROR;
     animation = NO_ANIMATION;
+  }
+}
+
+void processImageSelection() {
+  if (imageSelection != null) {
+    editImagePath = imageSelection.getAbsolutePath();
+    promptList[1] = editImagePath.substring(editImagePath.lastIndexOf(File.separator)+1);
+    current = 0;
+    for (int i=0; i<numImages; i++) {
+      receivedImage[i] = null;
+      saved[i] = false;
+      imageURL[i] = "";
+    }
+    saved[current] = true;
+    receivedImage[current] = loadImage(editImagePath); // TODO before resize and save file to png
+    if (DEBUG) println("editImagePath="+editImagePath);
+    if (DEBUG) println("selectImageFile: "+promptList[1]);
   }
 }
 
@@ -523,6 +528,7 @@ PImage makeTransparent(PImage img) {
   result.updatePixels();
   return result;
 }
+
 
 /**
  * Perform animation while waiting for OpenAI
@@ -584,21 +590,4 @@ void showIntroductionScreen() {
     text(COPYRIGHT, hoffset, voffset);
     voffset += introTextSize;
   }
-}
-
-//------------------------------------------------------------------------------------
-
-
-// Add leading zeroes to number
-String number(int index) {
-  // fix size of index number at 4 characters long
-  //  if (index == 0)
-  //    return "";
-  if (index < 10)
-    return ("000" + String.valueOf(index));
-  else if (index < 100)
-    return ("00" + String.valueOf(index));
-  else if (index < 1000)
-    return ("0" + String.valueOf(index));
-  return String.valueOf(index);
 }

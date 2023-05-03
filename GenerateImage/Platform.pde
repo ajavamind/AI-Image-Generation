@@ -5,7 +5,11 @@
 
 private final static int JAVA_MODE = 0;
 private final static int ANDROID_MODE = 1;
+String saveFolder = "output"; // default output folder location relative to sketch path
+String saveFolderPath; // full path to save folder
+
 int buildMode = JAVA_MODE;  // change manually for the build
+//int buildMode = ANDROID_MODE;  // change manually for the build
 
 // ***** Important Comment Out the unused platform code below
 
@@ -71,16 +75,16 @@ int buildMode = JAVA_MODE;  // change manually for the build
 //  files.selectInput("Select Configuration File:", "fileSelected");
 //}
 
-//void selectPhotoFolder() {
-//  if (saveFolderPath == null) {
-//    files.selectFolder("Select Photo Folder", "folderSelected");
-//    gui.displayMessage("Select Photo Folder", 30);
-//  } else {
-//    state = PRE_SAVE_STATE;
-//    if (DEBUG) println("saveFolderPath="+saveFolderPath);
-//    gui.displayMessage("Save Photo", 30);
-//  }
-//}
+////void selectPhotoFolder() {
+////  if (saveFolderPath == null) {
+////    files.selectFolder("Select Photo Folder", "folderSelected");
+////    gui.displayMessage("Select Photo Folder", 30);
+////  } else {
+////    state = PRE_SAVE_STATE;
+////    if (DEBUG) println("saveFolderPath="+saveFolderPath);
+////    gui.displayMessage("Save Photo", 30);
+////  }
+////}
 
 //final String configKey = "ConfigFilename";
 //final String photoNumberKey = "photoNumber";
@@ -130,6 +134,7 @@ int buildMode = JAVA_MODE;  // change manually for the build
 //  img.setNative(null);
 //  System.gc();
 //}
+
 
 //..........................................................................
 //..........................................................................
@@ -228,23 +233,6 @@ void selectCameraServerImage(File selection) {
   }
 }
 
-void processImageSelection() {
-  if (imageSelection != null) {
-    editImagePath = imageSelection.getAbsolutePath();
-    promptList[1] = editImagePath.substring(editImagePath.lastIndexOf(File.separator)+1);
-    current = 0;
-    for (int i=0; i<numImages; i++) {
-      receivedImage[i] = null;
-      saved[i] = false;
-      imageURL[i] = "";
-    }
-    saved[current] = true;
-    receivedImage[current] = loadImage(editImagePath); // TODO before resize and save file to png
-    if (DEBUG) println("editImagePath="+editImagePath);
-    if (DEBUG) println("selectImageFile: "+promptList[1]);
-  }
-}
-
 void selectMaskImageFile(File selection) {
   if (selection == null) {
     if (DEBUG) println("Selection window was closed or the user hit cancel.");
@@ -254,41 +242,6 @@ void selectMaskImageFile(File selection) {
     maskSelection = selection;
     processMaskSelection();
   }
-}
-
-void processMaskSelection() {
-  println("processMaskSelection()");
-  if (maskSelection != null) {
-    editMaskPath = maskSelection.getAbsolutePath();
-    maskImage = loadImage(editMaskPath);
-    println("editMaskPath="+editMaskPath);
-  }
-}
-
-void processCameraImageSelection() {
-  println("processCameraImageSelection()");
-  if (cameraImageSelection != null) {
-    editImagePath = cameraImageSelection.getAbsolutePath();
-    promptList[1] = editImagePath.substring(editImagePath.lastIndexOf(File.separator)+1);
-    current = 0;
-    for (int i=0; i<numImages; i++) {
-      receivedImage[i] = null;
-      saved[i] = false;
-      imageURL[i] = "";
-    }
-    saved[current] = true;
-    receivedImage[current] = loadImage(editImagePath);
-    if (DEBUG) println("camera editImagePath="+editImagePath);
-    if (DEBUG) println("camera selectCameraFile: "+promptList[1]);
-  }
-}
-
-// TODO process camera image mask **************************************************************
-void saveCameraImageSelection(String filename) {
-  println("saveCameraImageSelection("+filename+")");
-  cameraImageSelection = new File(filename);
-  promptList[2] = filename;
-  editImagePath = cameraImageSelection.getAbsolutePath();
 }
 
 void saveScreenshot() {

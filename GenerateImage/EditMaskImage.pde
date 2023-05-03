@@ -4,6 +4,56 @@
 
 import processing.core.PApplet; // sketch top class
 
+// TODO
+//String[] args ={this.toString()};  //Need to attach current name which is stripped by the new sketch
+//String[] newArgs = {name, str(handle)};
+//SecondApplet sa = new SecondApplet();
+//PApplet.runSketch(concat(args, newArgs), sa);
+
+void editNewImage(PImage inputImage, PImage maskImage, boolean embed) {
+  if (inputImage != null) {
+    if (!edit) {
+      String[] sketchName = {"Edit Mask Image"};
+      if (editImageSketch == null) {
+        editImageSketch = new EditMaskImage();
+        runSketch(sketchName, editImageSketch);
+        editImageSketch.init(inputImage, maskImage, embed);
+        edit = true;
+      }
+    } else {
+      editImageSketch.init(inputImage, maskImage, embed);
+      editImageSketch.getSurface().setVisible(true);  // get focus for EditImageMask
+    }
+  }
+}
+
+void processMaskSelection() {
+  println("processMaskSelection()");
+  if (maskSelection != null) {
+    editMaskPath = maskSelection.getAbsolutePath();
+    maskImage = loadImage(editMaskPath);
+    println("editMaskPath="+editMaskPath);
+  }
+}
+
+void processCameraImageSelection() {
+  println("processCameraImageSelection()");
+  if (cameraImageSelection != null) {
+    editImagePath = cameraImageSelection.getAbsolutePath();
+    promptList[1] = editImagePath.substring(editImagePath.lastIndexOf(File.separator)+1);
+    current = 0;
+    for (int i=0; i<numImages; i++) {
+      receivedImage[i] = null;
+      saved[i] = false;
+      imageURL[i] = "";
+    }
+    saved[current] = true;
+    receivedImage[current] = loadImage(editImagePath);
+    if (DEBUG) println("camera editImagePath="+editImagePath);
+    if (DEBUG) println("camera selectCameraFile: "+promptList[1]);
+  }
+}
+
 public class EditMaskImage extends PApplet {
 
   PImage baseImage;
