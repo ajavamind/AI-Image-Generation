@@ -24,35 +24,10 @@
  * Image files received are saved in a default output folder with a shortened text prompt used as the filename
  */
 
-// OpenAI-Java library imports
-import com.theokanning.openai.service.OpenAiService;
-import com.theokanning.openai.completion.CompletionRequest;
-import com.theokanning.openai.image.CreateImageRequest;
-import com.theokanning.openai.*;
-
-import java.time.Duration;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.Locale;
 
 private static final boolean DEBUG_GUI = false;
 //private static final boolean DEBUG_GUI = true; // prevents invoking OpenAI service
 private static final boolean DEBUG = true;  // Log println on Processing SDK console
-
-private static final Duration IMAGE_TIMEOUT = Duration.ofSeconds(120); // seconds
-
-OpenAiService service;
-CreateImageRequest request;
-CreateImageEditRequest editRequest;
-CreateImageVariationRequest variationRequest;
-
-private static final int NUM = 4; // maximum number of images to request, up to 10 allowed by Dall-E2
-private static final int NUM_DISPLAY = 4; // maximum number of images to request
-int numImages = NUM; // number of images requested from openai service, default
-int imageSize = 1024;  // square default working size and aspect ratio
-String genImageSize = "1024x1024";
-// note image type is always png with transparency
 
 PImage[] receivedImage; // images downloaded from ImageResult following a request
 String[] receivedImageSave; // the filenames where images downloaded from ImageResult following a request are saved
@@ -65,12 +40,12 @@ String editMaskPath = null;
 String filename;
 String filenamePath;
 
-String promptPrefix;
+//String promptPrefix;
 String prompt;
-String promptSuffix;
+//String promptSuffix;
 String requestPrompt;  // should be less than 400 characters for Dall-E 2
-String sessionDateTime;
 
+String sessionDateTime;
 int imageCounter = 1;
 boolean[] saved;
 boolean showIntroduction = true;
@@ -91,15 +66,6 @@ private static final String EDIT_EMBED_MASK_IMAGE_DESC = "F3 - Edit Embedded Mas
 private static final String VARIATION_IMAGE_DESC = "F4 - Generate Variation";
 int createType = GENERATE_IMAGE; // type of image creation request
 
-// animation section
-static final int ANIMATION_STEPS = 4;
-int[] animationCounter = new int[3];
-String[] animationSequence = {"|", "/", "-", "\\"};
-int animationHeight = 96;
-static final int NO_ANIMATION = 0;
-static final int SHOW_SECONDS = 1;
-static final int SHOW_SPINNER = 2;
-int animation = NO_ANIMATION;  // flag to control animation while waiting for openai to respond
 
 int statusHeight;
 int promptHeight;
@@ -108,8 +74,8 @@ int fontHeight;
 String errorText;
 PImage testImage;
 String testUrl;
-float appFrameRate = 30; // draw frames per second
 
+float appFrameRate = 30; // draw frames per second
 String RENDERER = JAVA2D; // default for setup size()
 
 GenerateImage generateImageSketch; // main sketch window
@@ -121,29 +87,15 @@ UvcCameraInputImage cameraImageSketch; // camera input sketch window
  */
 void setup() {
   size(1920, 1080, RENDERER);
+  //size(2560, 1440, RENDERER);
   background(128);   // light gray
-  fontHeight = 18;
+  initGUI();
+  
   frameRate(appFrameRate);
-  setTitle(TITLE);
   generateImageSketch = this;
   sessionDateTime = getDateTime();
 
-  // request focus on main window
-  // needed so user does not have to press mouse button or keyboard key
-  // over the window to get focus
-  // fixes a quirk with processing sketches in Java on Windows
-  try {
-    if (RENDERER.equals(P2D)) {
-      ((com.jogamp.newt.opengl.GLWindow) surface.getNative()).requestFocus();  // for P2D
-    } else if (RENDERER.equals(P3D)) {
-      ((com.jogamp.newt.opengl.GLWindow) surface.getNative()).requestFocus();  // for P2D
-    } else {
-      ((java.awt.Canvas) surface.getNative()).requestFocus();  // for JAVA2D (default)
-    }
-  }
-  catch (Exception ren) {
-    println("Renderer: "+ RENDERER + " Window focus exception: " + ren.toString());
-  }
+  getFocus();
 
   errorMessageHeight = height/2 -2*fontHeight;  // center screeen
   statusHeight = height-3*fontHeight-4;  // above prompt area
@@ -151,8 +103,6 @@ void setup() {
   // prompt text area can display 3 lines
   // only one line used
   promptHeight = height-2*fontHeight-4; // top line
-  //promptHeight = height-1*fontHeight-4; // middle line
-  //promptHeight = height-0*fontHeight-4; // bottom line
 
   promptEntry = new StringBuilder(400);
   promptIndex = 0;
@@ -167,14 +117,6 @@ void setup() {
   // OPENAI_TOKEN is your paid account token stored in the environment variables for Windows 10/11
   String token = System.getenv("OPENAI_TOKEN");
   service = new OpenAiService(token, IMAGE_TIMEOUT);
-
-  // initial prompt text setup
-  promptPrefix = "";
-  promptSuffix = "";
-  prompt = "Enter prompt here.";
-
-  // change prefix and suffix as needed, final prompt is concatenation of
-  // promptPrefix + prompt + promptSuffix
 
   receivedImage = new PImage[NUM_DISPLAY];
   receivedImageSave = new String[NUM_DISPLAY];
@@ -204,16 +146,6 @@ void draw() {
 
   // show prompt text on display
   textSize(fontHeight);
-  noStroke();
-  fill(128);
-  rect(0, height - statusHeight, width, statusHeight);
-  fill(255);
-  text(prompt, width/128, promptHeight);
-  float offset = 0;
-  if (prompt.length() > 0) {
-    offset  = textWidth(prompt.substring(0, promptIndex));
-  }
-  text("|", width/128 + offset-2, promptHeight); // cursor
 
   // check is prompt length is minimum size
   if (start && prompt.length() > 3) {
@@ -223,11 +155,7 @@ void draw() {
       receivedImage[i] = null;
     }
 
-    // build the request prompt string from prompt prefix and suffix
-    if (promptPrefix.equals("")) requestPrompt = prompt;
-    else requestPrompt = promptPrefix + " "+ prompt;
-    if (!promptSuffix.equals("")) requestPrompt +=  " " + promptSuffix;
-
+    requestPrompt =  prompt;
     // build the request to OpenAI with the prompt depending on createType
     if (createType == EDIT_MASK_IMAGE || createType == EDIT_EMBED_MASK_IMAGE) {
       println("\nEdit Image with prompt: " + prompt);
@@ -256,7 +184,7 @@ void draw() {
       imageURL[i] = "";
     }
     ready = false;
-    animation = SHOW_SECONDS; // allow animatins while waiting for OpenAI response to request
+    animation = SHOW_SECONDS; // allow animation while waiting for OpenAI response to request
 
     // start thread to create Image and wait for response from OpenAI DallE2
     if (!DEBUG_GUI) {
@@ -306,9 +234,6 @@ void draw() {
       ready = true;
     }
 
-    // display status on screen
-    fill(color(255, 0, 255));
-    text("Sending Generate Image.", width/8, statusHeight);
   }
 
   // check if image is ready
@@ -361,8 +286,8 @@ void draw() {
     animation = NO_ANIMATION;
     showIntroduction = false;
     image(receivedImage[current], 0, 0, receivedImage[current].width, receivedImage[current].height);
-    fill(0);
-    if (requestPrompt != null) text(requestPrompt, width/128, statusHeight);
+    //fill(0);
+    //if (requestPrompt != null) text(requestPrompt, width/128, statusHeight);
   } else {
     showIntroductionScreen();
   }
@@ -381,8 +306,6 @@ void draw() {
       }
     }
   }
-
-  doAnimation(animation);  //
 
   // Show mode in information section
   fill(192);
@@ -409,6 +332,9 @@ void draw() {
     text("Generate Image Mode Internal Error", x, y);
     break;
   };
+
+  // Update animation if active
+  doAnimation(animation);
 
   // show any errors from the request
   showError(errorText);
@@ -507,87 +433,5 @@ void processImageSelection() {
     receivedImage[current] = loadImage(editImagePath); // TODO before resize and save file to png
     if (DEBUG) println("editImagePath="+editImagePath);
     if (DEBUG) println("selectImageFile: "+promptList[1]);
-  }
-}
-
-//--------------------------------------------------------------------
-//
-/**
- * Convert PImage to a transparent PImage
- * PImage img Input image
- * returns PImage converted to transparent
- */
-PImage makeTransparent(PImage img) {
-  PImage result;
-  result = createImage(img.width, img.height, ARGB);
-  img.loadPixels();
-  result.loadPixels();
-  for (int i = 0; i < img.pixels.length; i++) {
-    result.pixels[i] = img.pixels[i];
-  }
-  result.updatePixels();
-  return result;
-}
-
-
-/**
- * Perform animation while waiting for OpenAI
- * selectAnimation type of animation
- */
-void doAnimation(int selectAnimation) {
-  fill(color(0, 0, 255));
-  textSize(animationHeight);
-  switch(selectAnimation) {
-  case SHOW_SECONDS:
-    int seconds = animationCounter[selectAnimation]/int(appFrameRate);
-    String working0 = str(seconds) + " ... \u221e" ;  // infinity
-    text(working0, imageSize/2- textWidth(working0)/2, height/2);
-    animationCounter[selectAnimation]++;
-    break;
-  case SHOW_SPINNER:
-    String working1 = animationSequence[animationCounter[selectAnimation]]; // Symbol sequence
-    text(working1, imageSize/2 - textWidth(working1)/2, height/2);
-    animationCounter[selectAnimation]++;
-    if (animationCounter[selectAnimation] >= ANIMATION_STEPS) animationCounter[selectAnimation] = 0;
-    break;
-  default:
-    animationCounter[0] = 0;
-    animationCounter[1] = 0;
-    animationCounter[2] = 0;
-    break;
-  }
-}
-
-static final String VERSION_NAME = "1.0";
-static final String VERSION_CODE = "1";
-static final String TITLE = "Generate Images With OpenAI DALL-E2 API";
-static final String SUBTITLE = "";
-static final String CREDITS = "Written by Andy Modla";
-static final String COPYRIGHT = "Copyright 2023 Andrew Modla";
-static String VERSION = "Version "+VERSION_NAME +" Number "+VERSION_CODE;
-
-void showIntroductionScreen() {
-  if (showIntroduction) {
-    //println("Introduction Screen");
-    int introTextSize = 24;
-    int vstart = 60;
-    int voffset = vstart + introTextSize;
-    int hstart = 10;
-    int hoffset = hstart;
-
-    textAlign(LEFT);
-    textSize(introTextSize);
-    fill(color(255, 128, 128));
-
-    text(TITLE, hoffset, voffset);
-    voffset += introTextSize;
-    text(SUBTITLE, hoffset, voffset);
-    voffset += introTextSize;
-    text(VERSION, hoffset, voffset);
-    voffset += introTextSize;
-    text(CREDITS, hoffset, voffset);
-    voffset += introTextSize;
-    text(COPYRIGHT, hoffset, voffset);
-    voffset += introTextSize;
   }
 }

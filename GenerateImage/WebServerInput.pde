@@ -53,7 +53,7 @@ void captureFrame(PImage img, String path ) {
  */
 ArrayList<String> getPhotoDirectory(String dir) {
   String[] html = loadStrings(dir);
-  ArrayList<String> filenames = new ArrayList<>();
+  ArrayList<String> filenames = new ArrayList<String>();
 
   Pattern pattern = Pattern.compile("href=\"(.*?)\"");
   for (int i=0; i<html.length; i++) {

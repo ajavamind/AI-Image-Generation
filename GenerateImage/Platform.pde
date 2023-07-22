@@ -151,6 +151,27 @@ void setTitle(String str) {
   surface.setTitle(str);
 }
 
+/**
+ * request focus on main window
+ * getFocus is called so user does not have to press mouse button or keyboard key
+ * over the window to get focus.
+ * This fixes a quirk/bug/problem with processing sketches in Java on Windows
+ */
+void getFocus() {
+  try {
+    if (RENDERER.equals(P2D)) {
+      ((com.jogamp.newt.opengl.GLWindow) surface.getNative()).requestFocus();  // for P2D
+    } else if (RENDERER.equals(P3D)) {
+      ((com.jogamp.newt.opengl.GLWindow) surface.getNative()).requestFocus();  // for P2D
+    } else {
+      ((java.awt.Canvas) surface.getNative()).requestFocus();  // for JAVA2D (default)
+    }
+  }
+  catch (Exception ren) {
+    println("Renderer: "+ RENDERER + " Window focus exception: " + ren.toString());
+  }
+}
+
 void selectInputImage() {
   if (DEBUG) println("Select Input Image File ");
   selectInput("Select Input Image File:", "selectImageFile");
@@ -256,12 +277,6 @@ void saveScreenshot() {
 // Save image of the composite screen
 void saveScreen(String outputFolderPath, String outputFilename, String suffix, String filetype) {
   save(outputFolderPath + File.separator + outputFilename + suffix + "." + filetype);
-}
-
-String getDateTime() {
-  Date current_date = new Date();
-  String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(current_date);
-  return timeStamp;
 }
 
 // calls exiftool exe in the path
