@@ -8,10 +8,14 @@ private final static int ANDROID_MODE = 1;
 String saveFolder = "output"; // default output folder location relative to sketch path
 String saveFolderPath; // full path to save folder
 
-int buildMode = JAVA_MODE;  // change manually for the build
-//int buildMode = ANDROID_MODE;  // change manually for the build
+//..........................................................................
+//..........................................................................
+//....ANDROID...............................................................
+//..........................................................................
+//..........................................................................
 
-// ***** Important Comment Out the unused platform code below
+
+// ***** Important: Comment Out the unused platform code below
 
 //// Android Platform Build Mode
 //import android.content.SharedPreferences;
@@ -20,6 +24,8 @@ int buildMode = JAVA_MODE;  // change manually for the build
 //import android.graphics.Bitmap;
 //import android.app.Activity;
 //import select.files.*;
+
+//int buildMode = ANDROID_MODE;  // change manually for the build
 
 //boolean grantedRead = false;
 //boolean grantedWrite = false;
@@ -138,10 +144,11 @@ int buildMode = JAVA_MODE;  // change manually for the build
 
 //..........................................................................
 //..........................................................................
-//..........................................................................
+//....WINDOWS...............................................................
 //..........................................................................
 //..........................................................................
 
+int buildMode = JAVA_MODE;
 
 // Java mode
 void openFileSystem() {
@@ -170,6 +177,13 @@ void getFocus() {
   catch (Exception ren) {
     println("Renderer: "+ RENDERER + " Window focus exception: " + ren.toString());
   }
+}
+
+/**
+ * get OPEN AI token from Windows environment variable
+ */
+String getToken() {
+  return System.getenv("OPENAI_API_KEY");
 }
 
 void selectInputImage() {

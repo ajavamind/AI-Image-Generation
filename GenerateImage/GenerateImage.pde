@@ -19,7 +19,7 @@
  * ESC key exit program or give focus to main window GenerateImage
  * Enter key sends text prompt request to DALL-E2 service of OpenAI
  *
- *  OPENAI_TOKEN is your paid account token stored as an environment variable for Windows 10/11
+ *  OPENAI_API_KEY is your paid account token stored as an environment variable for Windows 10/11
  *
  * Image files received are saved in a default output folder with a shortened text prompt used as the filename
  */
@@ -40,9 +40,7 @@ String editMaskPath = null;
 String filename;
 String filenamePath;
 
-//String promptPrefix;
 String prompt;
-//String promptSuffix;
 String requestPrompt;  // should be less than 400 characters for Dall-E 2
 
 String sessionDateTime;
@@ -68,7 +66,6 @@ int createType = GENERATE_IMAGE; // type of image creation request
 
 
 int statusHeight;
-int promptHeight;
 int errorMessageHeight;
 int fontHeight;
 String errorText;
@@ -100,10 +97,6 @@ void setup() {
   errorMessageHeight = height/2 -2*fontHeight;  // center screeen
   statusHeight = height-3*fontHeight-4;  // above prompt area
 
-  // prompt text area can display 3 lines
-  // only one line used
-  promptHeight = height-2*fontHeight-4; // top line
-
   promptEntry = new StringBuilder(400);
   promptIndex = 0;
   if (DEBUG_GUI) {
@@ -111,13 +104,13 @@ void setup() {
     testImage = loadImage(testUrl);
   }
 
+  openFileSystem();
+
   saveFolderPath = sketchPath() + File.separator + saveFolder; // default on start
 
   // create the OPENAI API service
-  // OPENAI_TOKEN is your paid account token stored in the environment variables for Windows 10/11
-  String token = System.getenv("OPENAI_TOKEN");
-  service = new OpenAiService(token, IMAGE_TIMEOUT);
-
+  initAI();
+  
   receivedImage = new PImage[NUM_DISPLAY];
   receivedImageSave = new String[NUM_DISPLAY];
   imageURL = new String[NUM_DISPLAY];
@@ -128,7 +121,6 @@ void setup() {
   // set start flag to begin generation in the draw() animation loop
   start = false;
 
-  openFileSystem();
 } // setup
 
 /**

@@ -15,7 +15,7 @@ private static final Duration IMAGE_TIMEOUT = Duration.ofSeconds(60);
 void setup() {
   size(1024, 1024);
   background(128);
-  String token = System.getenv("OPENAI_TOKEN");
+  String token = System.getenv("OPENAI_API_KEY");
   
   OpenAiService service = new OpenAiService(token, IMAGE_TIMEOUT);
   println("\nCreating Image...");

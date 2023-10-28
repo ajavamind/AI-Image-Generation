@@ -1,3 +1,4 @@
+// work in progress
 // read a directory listing file from a web server
 // scan for filenames, store in a list
 // return the last jpg or png file in the list
