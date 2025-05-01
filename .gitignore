@@ -10,4 +10,5 @@ application.macosx
 out
 GenerateImage/output
 GenerateImage/input
+temp*
 
