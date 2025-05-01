@@ -11,4 +11,5 @@ out
 GenerateImage/output
 GenerateImage/input
 temp*
+CreateImage/output
 
