@@ -257,14 +257,14 @@ void keyPressed() {
   if (key == ' ') {
     String dateTime = getDateTime();
     String filename = dateTime+"_GptImage1";
-    pimg[current].save(sketchPath() + File.separator + filename+"_"+current+".png");
+    pimg[current].save(sketchPath() + File.separator + "output" + File.separator + filename+"_"+current+".png");
     String[] revision = new String[1];
     if (revisedPrompt != null) {
       revision[0] = revisedPrompt;
     } else {
       revision[0] = prompt;
     }
-    saveStrings(sketchPath() + File.separator + filename+".txt", revision);
+    saveStrings(sketchPath() + File.separator + "output" + File.separator + filename+".txt", revision);
   } else if (key == 'n') {
     current++;
     if (current >= numImages) current = 0;
