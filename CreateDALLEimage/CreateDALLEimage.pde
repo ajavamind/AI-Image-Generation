@@ -25,7 +25,8 @@ void setup() {
   OpenAiService service = new OpenAiService(token, IMAGE_TIMEOUT);
   println("\nCreating Image...");
   CreateImageRequest request = CreateImageRequest.builder()
-    .prompt("large snowflakes falling on a beach")
+    .prompt("single red rose painting")
+    //.model("dall-e-3")
     .build();
 
   println("\nImage is located at:");
