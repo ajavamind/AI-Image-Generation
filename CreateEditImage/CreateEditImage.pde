@@ -70,7 +70,7 @@ void setup() {
   //testPath();
   //thread("testEditImageGptimage1");
   //thread("testEditMaskImageGptimage1");
-  
+
   thread("testEditMergeImageGptimage1");
 }
 
@@ -112,7 +112,7 @@ void testImageGptimage1() {
     pimg[i] = loadPImage(img);
     // Extract revisedPrompt
     revisedPrompt = img.revisedPrompt();
-    println("Revised Prompt: " + i +" "+revisedPrompt);
+    if (revisedPrompt != null) println("Revised Prompt: " + i +" "+revisedPrompt);
   }
 }
 
@@ -121,12 +121,12 @@ void testEditImageGptimage1() {
   prompt = "change rose petal color to white with blue streaks. place bouquet in a blue vase.";
   String filename = "testImage";
   numImages = 1;
-  Path currentDir = Paths.get(".");
-  System.out.println(currentDir);
+  //Path currentDir = Paths.get(".");
+  //System.out.println(currentDir);
   String sPath = sketchPath() + File.separator + "input" + File.separator + filename+".png";
   testImage = loadImage(sPath);
   Path path = Paths.get(sPath);
-  System.out.println("image path="+path);
+  //System.out.println("image path="+path);
   ImagesClient imagesClient = openAI.imagesClient();
   EditImageRequest editImageRequest = EditImageRequest.newBuilder()
     .image(path)
@@ -157,15 +157,15 @@ void testEditMergeImageGptimage1() {
   String filenameLeft = "readers_l.png";
   String filenameRight = "readers_r.png";
   numImages = 1;
-  Path currentDir = Paths.get(".");
-  System.out.println(currentDir);
+  //Path currentDir = Paths.get(".");
+  //System.out.println("currentDir="+currentDir);
   String lsPath = sketchPath() + File.separator + "input" + File.separator + filenameLeft;
   String rsPath = sketchPath() + File.separator + "input" + File.separator + filenameRight;
   testImage = loadImage(lsPath);
   Path[] path = new Path[2];
   path[0] = Paths.get(lsPath);
   path[1] = Paths.get(rsPath);
-  System.out.println("image path="+path);
+  //System.out.println("image path="+path);
   ImagesClient imagesClient = openAI.imagesClient();
   EditImageRequest editImageRequest = EditImageRequest.newBuilder()
     .image(path)
@@ -196,14 +196,14 @@ void testEditMaskImageGptimage1() {
   String filename = "maskImage2";
   String maskFilename = "maskImage2";
   numImages = 1;
-  Path currentDir = Paths.get(".");
-  System.out.println(currentDir);
+  //Path currentDir = Paths.get(".");
+  //System.out.println("currentDir="+currentDir);
   String sPath = sketchPath() + File.separator + "input" + File.separator + filename+".png";
   String msPath = sketchPath() + File.separator + "input" + File.separator + maskFilename+".png";
   testImage = loadImage(sPath);
   Path path = Paths.get(sPath);
   Path mPath = Paths.get(msPath);
-  System.out.println("image path="+path);
+  //System.out.println("image path="+path);
   ImagesClient imagesClient = openAI.imagesClient();
   EditImageRequest editImageRequest = EditImageRequest.newBuilder()
     .image(path)
@@ -231,7 +231,7 @@ void testEditMaskImageGptimage1() {
 }
 
 void getImages(Images images, String filename) {
-    // Get the images from the list
+  // Get the images from the list
   pimg = new PImage[numImages];
   if (images != null) {
     for (int i=0; i<numImages; i++) {
@@ -242,7 +242,7 @@ void getImages(Images images, String filename) {
       }
       // Extract revisedPrompt
       revisedPrompt = img.revisedPrompt();
-      println("Revised Prompt: " + i +" "+revisedPrompt);
+      if (revisedPrompt != null) println("Revised Prompt: " + i +" "+revisedPrompt);
     }
   } else {
     println("images null");
@@ -280,10 +280,9 @@ PImage bufferedToPImage(BufferedImage bimg) {
   return pimg;
 }
 
-
 void draw() {
   background(128);
-      textSize(48);
+  textSize(48);
   if (urlImg != null) {
     image(urlImg, 0, 0);
   } else if (pimg != null && pimg[current] != null) {
