@@ -18,6 +18,7 @@ import java.lang.System;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Enumeration;
+
 import java.util.Locale;
 import java.io.IOException;
 import java.net.URI;
@@ -46,6 +47,7 @@ OpenAI openAI;
 String prompt="An acrylic painting of a bouquet of twelve red roses.";
 String revisedPrompt;
 String testFilename= "testFilename";
+String LOCAL_URL = "http://192.168.1.96:8080/"; // OpenAI API compatible local LLM server
 
 void setup() {
   //size(1024, 1024);
@@ -54,6 +56,7 @@ void setup() {
   openAI = OpenAI.newBuilder(System.getenv("OPENAI_API_KEY"))
     .requestTimeout(IMAGE_TIMEOUT)
     //.organization("OPENAI_ORG_ID")
+    //.baseUrl(LOCAL_URL)
     .build();
 
   //test();
@@ -69,10 +72,11 @@ void testPath() {
 
 void test() {
   // Test simple chat connection
+  String prompt = "Who won the world series in 2020? /nothink";
   ChatClient chatClient = openAI.chatClient();
   CreateChatCompletionRequest createChatCompletionRequest = CreateChatCompletionRequest.newBuilder()
     .model("gpt-4.1")
-    .message(ChatMessage.userMessage("Who won the world series in 2020?"))
+    .message(ChatMessage.userMessage(prompt))
     .build();
   ChatCompletion chatCompletion = chatClient.createChatCompletion(createChatCompletionRequest);
   println(chatCompletion.choices().get(0));
