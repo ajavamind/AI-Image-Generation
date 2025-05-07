@@ -23,9 +23,6 @@ import java.util.Enumeration;
 import java.util.Locale;
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.Base64;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -66,12 +63,14 @@ void setup() {
 
   //test();
 
-  //testImageGptimage1();
+  thread("testImageGptimage1");
+  
   //testPath();
   //thread("testEditImageGptimage1");
   //thread("testEditMaskImageGptimage1");
 
-  thread("testEditMergeImageGptimage1");
+  //thread("testEditMergeImageGptimage1");
+  //thread("testEditPhotoGptimage1");
 }
 
 void testPath() {
@@ -93,6 +92,9 @@ void test() {
 }
 
 void testImageGptimage1() {
+  String sDate = getDateTime();
+  prompt = "generate a random subject realistic photo for today "+ sDate +". Make it relevant and colorful";
+  String filename = "IFT_"+sDate;
   ImagesClient imagesClient = openAI.imagesClient();
   CreateImageRequest createImageRequest = CreateImageRequest.newBuilder()
     .model("gpt-image-1")
@@ -105,15 +107,8 @@ void testImageGptimage1() {
     .build();
   Images images = imagesClient.createImage(createImageRequest);
 
-  // Get the first image from the list
-  pimg = new PImage[numImages];
-  for (int i=0; i<numImages; i++) {
-    Images.Image img = images.data().get(i);
-    pimg[i] = loadPImage(img);
-    // Extract revisedPrompt
-    revisedPrompt = img.revisedPrompt();
-    if (revisedPrompt != null) println("Revised Prompt: " + i +" "+revisedPrompt);
-  }
+  getImages(images, filename, "");
+
 }
 
 void testEditImageGptimage1() {
@@ -148,7 +143,42 @@ void testEditImageGptimage1() {
     println();
   }
 
-  getImages(images, filename);
+  getImages(images, filename, "_edited"+ getDateTime());
+}
+
+void testEditPhotoGptimage1() {
+  // gpt-image-1 model only
+  prompt = "Modify this photo of a boy and girl sculpture looking at a mobile phone instead of a book. keep photo realistic";
+  String filename = "readers_l";
+  numImages = 4;
+  //Path currentDir = Paths.get(".");
+  //System.out.println(currentDir);
+  String sPath = sketchPath() + File.separator + "input" + File.separator + filename+".png";
+  testImage = loadImage(sPath);
+  Path path = Paths.get(sPath);
+  //System.out.println("image path="+path);
+  ImagesClient imagesClient = openAI.imagesClient();
+  EditImageRequest editImageRequest = EditImageRequest.newBuilder()
+    .image(path)
+    .model("gpt-image-1")
+    //.model("dall-e-2")
+    .prompt(prompt)
+    .n(numImages)
+    //.quality("medium")  // causes error with gpt-image-1
+    //.responseFormat("b64_json")  // causes error with gpt-image-1
+    //.size("1024x1024") // causes error with gpt-image-1
+    .build();
+  Images images = null;
+  try {
+    images = imagesClient.editImage(editImageRequest);
+  }
+  catch (Exception e) {
+    println("Exception Error: ");
+    println(e);
+    println();
+  }
+
+  getImages(images, filename, "_edit_"+ getDateTime());
 }
 
 void testEditMergeImageGptimage1() {
@@ -187,7 +217,7 @@ void testEditMergeImageGptimage1() {
     println();
   }
 
-  getImages(images, "readers_anaglyph");
+  getImages(images, "readers", "_anaglyph_"+ getDateTime());
 }
 
 void testEditMaskImageGptimage1() {
@@ -227,10 +257,10 @@ void testEditMaskImageGptimage1() {
   }
 
   // Get the images from the list
-  getImages(images, filename);
+  getImages(images, filename, "_mask_"+ getDateTime());
 }
 
-void getImages(Images images, String filename) {
+void getImages(Images images, String filename, String suffix) {
   // Get the images from the list
   pimg = new PImage[numImages];
   if (images != null) {
@@ -238,7 +268,7 @@ void getImages(Images images, String filename) {
       Images.Image img = images.data().get(i);
       pimg[i] = loadPImage(img);
       if (pimg[i] != null) {
-        pimg[i].save(sketchPath() + File.separator + "output" + File.separator + filename+"_edited"+ getDateTime()+ ".png");
+        pimg[i].save(sketchPath() + File.separator + "output" + File.separator + filename+ suffix + ".png");
       }
       // Extract revisedPrompt
       revisedPrompt = img.revisedPrompt();
